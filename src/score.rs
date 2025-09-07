@@ -39,11 +39,25 @@ impl Score {
     Score::new(true, 0, turn_count_win)
   }
 
+  /// Construct a `Score` for the current player winning in `turn_count_win`
+  /// moves, assuming there is no faster way to force a win.
+  pub const fn optimal_win(turn_count_win: u32) -> Self {
+    debug_assert!(turn_count_win != 0);
+    Score::new(true, turn_count_win - 1, turn_count_win)
+  }
+
   /// Construct a `Score` for the current player losing in `turn_count_lose`
   /// moves.
   pub const fn lose(turn_count_lose: u32) -> Self {
     debug_assert!(turn_count_lose != 0);
     Score::new(false, 0, turn_count_lose)
+  }
+
+  /// Construct a `Score` for the current player losing in `turn_count_lose`
+  /// moves, assuming there is no faster way for the opponent to force a win.
+  pub const fn optimal_lose(turn_count_lose: u32) -> Self {
+    debug_assert!(turn_count_lose != 0);
+    Score::new(false, turn_count_lose - 1, turn_count_lose)
   }
 
   /// Construct a `Score` for no possible forcing win in `turn_count_tie` moves.
@@ -104,8 +118,9 @@ impl Score {
   /// Transforms a score at a given state of the game to how that score would
   /// appear from the perspective of a game state one step before it.
   ///
-  /// If a winning move for one player has been found in n steps, then it is
-  /// turned into a winning move for the other player in n + 1 steps.
+  /// For example, if a winning move for one player has been found in n steps,
+  /// then it is turned into a winning move for the other player in n + 1
+  /// steps.
   pub fn backstep(&self) -> Self {
     let (mut cur_player_wins, mut turn_count_tie, mut turn_count_win) = Self::unpack(self.data);
     if turn_count_win > 0 {
@@ -114,6 +129,25 @@ impl Score {
     }
     if turn_count_tie != Self::MAX_TIE_DEPTH {
       turn_count_tie += 1;
+    }
+
+    Score::new(cur_player_wins, turn_count_tie, turn_count_win)
+  }
+
+  /// Transforms a score at a given state of the game to how that score would
+  /// appear from the perspective of a game state one step after it.
+  ///
+  /// For example, if a winning move for one player has been found in n steps,
+  /// then it is turned into a winning move for the other player in n - 1
+  /// steps.
+  pub fn forwardstep(&self) -> Self {
+    let (mut cur_player_wins, mut turn_count_tie, mut turn_count_win) = Self::unpack(self.data);
+    if turn_count_win > 0 {
+      turn_count_win -= 1;
+      cur_player_wins = !cur_player_wins;
+    }
+    if turn_count_tie > 0 && turn_count_tie != Self::MAX_TIE_DEPTH {
+      turn_count_tie -= 1;
     }
 
     Score::new(cur_player_wins, turn_count_tie, turn_count_win)
@@ -289,6 +323,8 @@ impl Display for Score {
 mod tests {
   use crate::Score;
 
+  use googletest::{gtest, prelude::*};
+
   fn check_compatible(s1: &Score, s2: &Score) {
     assert!(s1.compatible(s2));
     assert!(s2.compatible(s1));
@@ -309,5 +345,14 @@ mod tests {
     check_incompatible(&Score::guaranteed_tie(), &Score::lose(1));
     check_incompatible(&Score::guaranteed_tie(), &Score::win(10));
     check_incompatible(&Score::guaranteed_tie(), &Score::lose(10));
+  }
+
+  #[gtest]
+  fn test_backstep() {
+    expect_eq!(Score::win(1).backstep(), Score::optimal_lose(2));
+    expect_eq!(Score::lose(1).backstep(), Score::optimal_win(2));
+
+    expect_eq!(Score::tie(0).backstep(), Score::tie(1));
+    expect_eq!(Score::guaranteed_tie().backstep(), Score::guaranteed_tie());
   }
 }
