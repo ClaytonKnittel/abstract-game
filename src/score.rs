@@ -352,7 +352,20 @@ mod tests {
     expect_eq!(Score::win(1).backstep(), Score::optimal_lose(2));
     expect_eq!(Score::lose(1).backstep(), Score::optimal_win(2));
 
-    expect_eq!(Score::tie(0).backstep(), Score::tie(1));
+    expect_eq!(Score::no_info().backstep(), Score::tie(1));
     expect_eq!(Score::guaranteed_tie().backstep(), Score::guaranteed_tie());
+  }
+
+  #[gtest]
+  fn test_forwardstep() {
+    expect_eq!(Score::win(2).forwardstep(), Score::lose(1));
+    expect_eq!(Score::lose(2).forwardstep(), Score::win(1));
+
+    expect_eq!(Score::no_info().forwardstep(), Score::no_info());
+    expect_eq!(Score::tie(1).forwardstep(), Score::no_info());
+    expect_eq!(
+      Score::guaranteed_tie().forwardstep(),
+      Score::guaranteed_tie()
+    );
   }
 }
