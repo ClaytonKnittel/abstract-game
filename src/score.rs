@@ -12,7 +12,7 @@ pub enum ScoreValue {
   Tie,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Score {
   pub(crate) data: (u16, u8),
 }
