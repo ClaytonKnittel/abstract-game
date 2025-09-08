@@ -143,7 +143,7 @@ impl Score {
   pub fn forwardstep(&self) -> Self {
     let (mut cur_player_wins, mut turn_count_tie, mut turn_count_win) = Self::unpack(self.data);
     if turn_count_win > 0 {
-      turn_count_win -= 1;
+      turn_count_win = (turn_count_win - 1).max(1);
       cur_player_wins = !cur_player_wins;
     }
     if turn_count_tie > 0 && turn_count_tie != Self::MAX_TIE_DEPTH {
@@ -360,6 +360,9 @@ mod tests {
   fn test_forwardstep() {
     expect_eq!(Score::win(2).forwardstep(), Score::lose(1));
     expect_eq!(Score::lose(2).forwardstep(), Score::win(1));
+
+    expect_eq!(Score::win(1).forwardstep(), Score::lose(1));
+    expect_eq!(Score::lose(1).forwardstep(), Score::win(1));
 
     expect_eq!(Score::no_info().forwardstep(), Score::no_info());
     expect_eq!(Score::tie(1).forwardstep(), Score::no_info());
