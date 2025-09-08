@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 /// Arbitrary labels to assign to each of the two players of a game. `Player1`
 /// does not need to be the first player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,8 +64,8 @@ impl GameResult {
   }
 }
 
-pub trait Game: Clone + Sized {
-  type Move: Copy;
+pub trait Game: Clone + Debug + Sized {
+  type Move: Copy + Debug;
   type MoveGenerator: GameMoveIterator<Item = Self::Move, Game = Self>;
 
   fn move_generator(&self) -> Self::MoveGenerator;
