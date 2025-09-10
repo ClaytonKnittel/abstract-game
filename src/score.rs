@@ -158,8 +158,9 @@ impl Score {
   /// steps.
   pub fn backstep(&self) -> Self {
     debug_assert!(self.turn_count_win() < Self::MAX_WIN_DEPTH);
-    let winning = (self.data & Self::WIN_MASK) != 0;
-    let guaranteed_tie = (self.data & Self::TIE_MASK) == Self::TIE_MASK;
+    let (_, tie_bits, win_bits) = self.unpack_unshifted();
+    let winning = win_bits != 0;
+    let guaranteed_tie = tie_bits == Self::TIE_MASK;
 
     let to_add = (winning as u32 * ((1 << Self::WIN_SHIFT) | Self::CUR_PLAYER_WINS_MASK))
       + (!guaranteed_tie as u32 * (1 << Self::TIE_SHIFT));
@@ -173,10 +174,10 @@ impl Score {
   /// then it is turned into a winning move for the other player in n - 1
   /// steps.
   pub fn forwardstep(&self) -> Self {
-    let swap_player_turn = (self.data & Self::WIN_MASK) != 0;
-    let deduct_winning_turns = (self.data & Self::WIN_MASK) > (1 << Self::WIN_SHIFT);
-    let deduct_tied_turns =
-      (self.data & Self::TIE_MASK) != Self::TIE_MASK && (self.data & Self::TIE_MASK) != 0;
+    let (_, tie_bits, win_bits) = self.unpack_unshifted();
+    let swap_player_turn = win_bits != 0;
+    let deduct_winning_turns = win_bits > (1 << Self::WIN_SHIFT);
+    let deduct_tied_turns = tie_bits != Self::TIE_MASK && tie_bits != 0;
 
     Self {
       data: self.data.wrapping_sub(
@@ -193,17 +194,14 @@ impl Score {
   pub const fn merge(&self, other: Self) -> Self {
     debug_assert!(self.compatible(other));
 
-    let tie1 = self.data & Self::TIE_MASK;
-    let tie2 = other.data & Self::TIE_MASK;
+    let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
+    let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
+
     let tie = max_u32(tie1, tie2);
 
     let win_one: u32 = 1 << Self::WIN_SHIFT;
-    let win1 = self.data & Self::WIN_MASK;
-    let win2 = other.data & Self::WIN_MASK;
     let win = min_u32(win1.wrapping_sub(win_one), win2.wrapping_sub(win_one)).wrapping_add(win_one);
 
-    let cur_player_wins1 = self.data & Self::CUR_PLAYER_WINS_MASK;
-    let cur_player_wins2 = other.data & Self::CUR_PLAYER_WINS_MASK;
     let cur_player_wins = cur_player_wins1 | cur_player_wins2;
 
     Score { data: tie + win + cur_player_wins }
@@ -289,6 +287,14 @@ impl Score {
     ((cur_player_wins as u32) << Self::CUR_PLAYER_WINS_SHIFT)
       + (turn_count_tie << Self::TIE_SHIFT)
       + (turn_count_win << Self::WIN_SHIFT)
+  }
+
+  const fn unpack_unshifted(&self) -> (u32, u32, u32) {
+    (
+      self.data & Self::CUR_PLAYER_WINS_MASK,
+      self.data & Self::TIE_MASK,
+      self.data & Self::WIN_MASK,
+    )
   }
 
   const fn unpack(data: u32) -> (bool, u32, u32) {
