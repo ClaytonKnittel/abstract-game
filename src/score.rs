@@ -379,8 +379,8 @@ mod tests {
   }
 
   fn check_merge_eq(s1: Score, s2: Score, expected: Score) {
-    assert_eq!(s1.merge(s2), expected);
-    assert_eq!(s2.merge(s1), expected);
+    assert_eq!(s1.merge(s2), expected, "Merging {s1} and {s2}");
+    assert_eq!(s2.merge(s1), expected, "Merging {s2} and {s1}");
 
     let opposite_s1 = opposite_score(s1);
     let opposite_s2 = opposite_score(s2);
@@ -456,6 +456,14 @@ mod tests {
     check_merge_eq(
       Score::new(true, 5, 20),
       Score::new(true, 10, 40),
+      Score::new(true, 10, 20),
+    );
+
+    // Merging a tie and a win results in a win
+    check_merge_eq(Score::win(10), Score::tie(5), Score::new(true, 5, 10));
+    check_merge_eq(
+      Score::new(true, 5, 20),
+      Score::tie(10),
       Score::new(true, 10, 20),
     );
   }
