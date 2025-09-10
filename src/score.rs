@@ -325,18 +325,37 @@ mod tests {
 
   use googletest::{gtest, prelude::*};
 
+  fn opposite_score(score: &Score) -> Score {
+    Score::new(
+      !score.cur_player_wins(),
+      score.turn_count_tie(),
+      score.turn_count_win(),
+    )
+  }
+
   fn check_compatible(s1: &Score, s2: &Score) {
     assert!(s1.compatible(s2));
     assert!(s2.compatible(s1));
+
+    let opposite_s1 = opposite_score(s1);
+    let opposite_s2 = opposite_score(s2);
+    assert!(opposite_s1.compatible(&opposite_s2));
+    assert!(opposite_s2.compatible(&opposite_s1));
   }
 
   fn check_incompatible(s1: &Score, s2: &Score) {
     assert!(!s1.compatible(s2));
     assert!(!s2.compatible(s1));
+
+    let opposite_s1 = opposite_score(s1);
+    let opposite_s2 = opposite_score(s2);
+    assert!(!opposite_s1.compatible(&opposite_s2));
+    assert!(!opposite_s2.compatible(&opposite_s1));
   }
 
   #[test]
   fn test_compatible() {
+    // Guaranteed tie is incompatible with anything that isn't a tie.
     check_compatible(&Score::guaranteed_tie(), &Score::guaranteed_tie());
     check_compatible(&Score::guaranteed_tie(), &Score::tie(10));
     check_compatible(&Score::guaranteed_tie(), &Score::no_info());
@@ -345,6 +364,25 @@ mod tests {
     check_incompatible(&Score::guaranteed_tie(), &Score::lose(1));
     check_incompatible(&Score::guaranteed_tie(), &Score::win(10));
     check_incompatible(&Score::guaranteed_tie(), &Score::lose(10));
+
+    // Scores are compatible if they have the same winner and don't disagree on
+    // tie/win regions.
+    check_compatible(&Score::new(true, 10, 20), &Score::new(true, 5, 40));
+    check_compatible(&Score::new(true, 5, 20), &Score::new(true, 10, 40));
+    check_compatible(&Score::new(true, 10, 20), &Score::new(true, 10, 40));
+    check_compatible(&Score::new(true, 5, 20), &Score::new(true, 10, 20));
+    check_compatible(&Score::win(10), &Score::win(20));
+    check_compatible(&Score::win(10), &Score::new(true, 5, 20));
+
+    // Scores with overlapping tied/win regions are incompatible.
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(true, 30, 40));
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(true, 20, 40));
+
+    // Scores with different winners are always incompatible.
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 30, 40));
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 20, 40));
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 0, 40));
+    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 0, 20));
   }
 
   #[gtest]
