@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{Game, GameMoveIterator, GamePlayer, GameResult};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TTTMove(u32);
 
 impl TTTMove {
