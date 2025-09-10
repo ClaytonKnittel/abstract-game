@@ -1,6 +1,7 @@
 use std::{
   cmp::Ordering,
   fmt::{Debug, Display},
+  hint::unreachable_unchecked,
 };
 
 use crate::util::{max_u32, min_u32};
@@ -132,7 +133,8 @@ impl Score {
         ScoreValue::OtherPlayerWins
       }
     } else {
-      panic!("Attempted to resolve score at undiscovered depth");
+      debug_assert!(false, "Attempted to resolve score at undiscovered depth");
+      unsafe { unreachable_unchecked() }
     }
   }
 
@@ -190,18 +192,21 @@ impl Score {
   /// conflicting information.
   pub const fn merge(&self, other: Self) -> Self {
     debug_assert!(self.compatible(other));
-    let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
-    let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
-    let turn_count_win = min_u32(
-      turn_count_win1.wrapping_sub(1),
-      turn_count_win2.wrapping_sub(1),
-    )
-    .wrapping_add(1);
-    let turn_count_tie = max_u32(turn_count_tie1, turn_count_tie2);
-    let cur_player_wins = cur_player_wins1 || cur_player_wins2;
+    let tie1 = self.data & Self::TIE_MASK;
+    let tie2 = other.data & Self::TIE_MASK;
+    let tie = max_u32(tie1, tie2);
 
-    Score::new(cur_player_wins, turn_count_tie, turn_count_win)
+    let win_one: u32 = 1 << Self::WIN_SHIFT;
+    let win1 = self.data & Self::WIN_MASK;
+    let win2 = other.data & Self::WIN_MASK;
+    let win = min_u32(win1.wrapping_sub(win_one), win2.wrapping_sub(win_one)).wrapping_add(win_one);
+
+    let cur_player_wins1 = self.data & Self::CUR_PLAYER_WINS_MASK;
+    let cur_player_wins2 = other.data & Self::CUR_PLAYER_WINS_MASK;
+    let cur_player_wins = cur_player_wins1 | cur_player_wins2;
+
+    Score { data: tie + win + cur_player_wins }
   }
 
   /// True if this score can be used in place of a search that goes
