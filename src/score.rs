@@ -218,31 +218,16 @@ impl Score {
   /// Returns true if the two scores don't contain conflicting information, i.e.
   /// they are compatible. If true, the scores can be safely `Score::merge`d.
   pub const fn compatible(&self, other: Score) -> bool {
-    let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
-    let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
+    let tie_to_win_shift = Self::WIN_SHIFT - Self::TIE_SHIFT;
 
-    let tc_win1 = if turn_count_win1 == 0 {
-      u32::MAX
-    } else {
-      turn_count_win1
-    };
-    let tc_win2 = if turn_count_win2 == 0 {
-      u32::MAX
-    } else {
-      turn_count_win2
-    };
-    let score1 = if turn_count_win1 == 0 {
-      cur_player_wins2
-    } else {
-      cur_player_wins1
-    };
-    let score2 = if turn_count_win2 == 0 {
-      cur_player_wins1
-    } else {
-      cur_player_wins2
-    };
+    let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
+    let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
 
-    tc_win1 > turn_count_tie2 && tc_win2 > turn_count_tie1 && score1 == score2
+    let tc_win1 = win1.wrapping_sub(1 << Self::WIN_SHIFT);
+    let tc_win2 = win2.wrapping_sub(1 << Self::WIN_SHIFT);
+    let agree = win1.overflowing_mul(win2).0 == 0 || cur_player_wins1 == cur_player_wins2;
+
+    tc_win1 >= (tie2 << tie_to_win_shift) && tc_win2 >= (tie1 << tie_to_win_shift) && agree
   }
 
   /// True if this score is better than `other` for the current player.
