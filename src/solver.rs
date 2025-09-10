@@ -16,10 +16,10 @@ pub trait Solver {
     let (move_score, _) = self.best_move(&game.with_move(m), depth - 1);
     let move_score = move_score.backstep();
 
-    if cur_score.compatible(&move_score) {
+    if cur_score.compatible(move_score) {
       MoveLoss::Equivalent
     } else {
-      debug_assert!(cur_score.better(&move_score));
+      debug_assert!(cur_score.better(move_score));
       MoveLoss::Worse
     }
   }

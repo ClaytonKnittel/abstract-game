@@ -156,7 +156,7 @@ impl Score {
   /// Merges the information contained in another score into this one. This
   /// assumes that the scores are compatible, i.e. they don't contain
   /// conflicting information.
-  pub const fn merge(&self, other: &Self) -> Self {
+  pub const fn merge(&self, other: Self) -> Self {
     let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
     let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
@@ -181,7 +181,7 @@ impl Score {
 
   /// Returns true if the two scores don't contain conflicting information, i.e.
   /// they are compatible. If true, the scores can be safely `Score::merge`d.
-  pub const fn compatible(&self, other: &Score) -> bool {
+  pub const fn compatible(&self, other: Score) -> bool {
     let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
     let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
@@ -210,7 +210,7 @@ impl Score {
   }
 
   /// True if this score is better than `other` for the current player.
-  pub const fn better(&self, other: &Score) -> bool {
+  pub const fn better(&self, other: Score) -> bool {
     let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
     let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
@@ -278,14 +278,14 @@ impl PartialOrd for Score {
 
 impl Ord for Score {
   fn cmp(&self, other: &Self) -> Ordering {
-    if self.better(other) {
-      debug_assert!(!other.better(self));
+    if self.better(*other) {
+      debug_assert!(!other.better(*self));
       Ordering::Greater
     } else if self == other {
-      debug_assert!(!other.better(self));
+      debug_assert!(!other.better(*self));
       Ordering::Equal
     } else {
-      debug_assert!(other.better(self));
+      debug_assert!(other.better(*self));
       Ordering::Less
     }
   }
@@ -325,7 +325,7 @@ mod tests {
 
   use googletest::{gtest, prelude::*};
 
-  fn opposite_score(score: &Score) -> Score {
+  fn opposite_score(score: Score) -> Score {
     Score::new(
       !score.cur_player_wins(),
       score.turn_count_tie(),
@@ -333,56 +333,61 @@ mod tests {
     )
   }
 
-  fn check_compatible(s1: &Score, s2: &Score) {
+  fn check_compatible(s1: Score, s2: Score) {
     assert!(s1.compatible(s2));
     assert!(s2.compatible(s1));
 
     let opposite_s1 = opposite_score(s1);
     let opposite_s2 = opposite_score(s2);
-    assert!(opposite_s1.compatible(&opposite_s2));
-    assert!(opposite_s2.compatible(&opposite_s1));
+    assert!(opposite_s1.compatible(opposite_s2));
+    assert!(opposite_s2.compatible(opposite_s1));
   }
 
-  fn check_incompatible(s1: &Score, s2: &Score) {
+  fn check_incompatible(s1: Score, s2: Score) {
     assert!(!s1.compatible(s2));
     assert!(!s2.compatible(s1));
 
     let opposite_s1 = opposite_score(s1);
     let opposite_s2 = opposite_score(s2);
-    assert!(!opposite_s1.compatible(&opposite_s2));
-    assert!(!opposite_s2.compatible(&opposite_s1));
+    assert!(!opposite_s1.compatible(opposite_s2));
+    assert!(!opposite_s2.compatible(opposite_s1));
   }
 
   #[test]
   fn test_compatible() {
     // Guaranteed tie is incompatible with anything that isn't a tie.
-    check_compatible(&Score::guaranteed_tie(), &Score::guaranteed_tie());
-    check_compatible(&Score::guaranteed_tie(), &Score::tie(10));
-    check_compatible(&Score::guaranteed_tie(), &Score::no_info());
+    check_compatible(Score::guaranteed_tie(), Score::guaranteed_tie());
+    check_compatible(Score::guaranteed_tie(), Score::tie(10));
+    check_compatible(Score::guaranteed_tie(), Score::no_info());
 
-    check_incompatible(&Score::guaranteed_tie(), &Score::win(1));
-    check_incompatible(&Score::guaranteed_tie(), &Score::lose(1));
-    check_incompatible(&Score::guaranteed_tie(), &Score::win(10));
-    check_incompatible(&Score::guaranteed_tie(), &Score::lose(10));
+    check_incompatible(Score::guaranteed_tie(), Score::win(1));
+    check_incompatible(Score::guaranteed_tie(), Score::lose(1));
+    check_incompatible(Score::guaranteed_tie(), Score::win(10));
+    check_incompatible(Score::guaranteed_tie(), Score::lose(10));
 
     // Scores are compatible if they have the same winner and don't disagree on
     // tie/win regions.
-    check_compatible(&Score::new(true, 10, 20), &Score::new(true, 5, 40));
-    check_compatible(&Score::new(true, 5, 20), &Score::new(true, 10, 40));
-    check_compatible(&Score::new(true, 10, 20), &Score::new(true, 10, 40));
-    check_compatible(&Score::new(true, 5, 20), &Score::new(true, 10, 20));
-    check_compatible(&Score::win(10), &Score::win(20));
-    check_compatible(&Score::win(10), &Score::new(true, 5, 20));
+    check_compatible(Score::new(true, 10, 20), Score::new(true, 5, 40));
+    check_compatible(Score::new(true, 5, 20), Score::new(true, 10, 40));
+    check_compatible(Score::new(true, 10, 20), Score::new(true, 10, 40));
+    check_compatible(Score::new(true, 5, 20), Score::new(true, 10, 20));
+    check_compatible(Score::win(10), Score::win(20));
+    check_compatible(Score::win(10), Score::new(true, 5, 20));
 
     // Scores with overlapping tied/win regions are incompatible.
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(true, 30, 40));
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(true, 20, 40));
+    check_incompatible(Score::new(true, 0, 20), Score::new(true, 30, 40));
+    check_incompatible(Score::new(true, 0, 20), Score::new(true, 20, 40));
 
     // Scores with different winners are always incompatible.
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 30, 40));
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 20, 40));
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 0, 40));
-    check_incompatible(&Score::new(true, 0, 20), &Score::new(false, 0, 20));
+    check_incompatible(Score::new(true, 0, 20), Score::new(false, 30, 40));
+    check_incompatible(Score::new(true, 0, 20), Score::new(false, 20, 40));
+    check_incompatible(Score::new(true, 0, 20), Score::new(false, 0, 40));
+    check_incompatible(Score::new(true, 0, 20), Score::new(false, 0, 20));
+  }
+
+  #[test]
+  fn test_merge() {
+    assert_eq!(Score::no_info().merge(Score::win(10)), Score::win(10));
   }
 
   #[gtest]
