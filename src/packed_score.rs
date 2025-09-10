@@ -17,9 +17,7 @@ impl<P> PackedScore<P> {
   }
 
   pub const fn score(&self) -> Score {
-    Score {
-      data: (self.data.0, self.data.1),
-    }
+    Score { data: (self.data.0, self.data.1) }
   }
 
   pub const fn packed_data(&self) -> &P {

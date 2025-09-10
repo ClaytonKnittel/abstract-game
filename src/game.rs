@@ -28,10 +28,7 @@ pub trait GameMoveIterator: Sized {
   fn next(&mut self, game: &Self::Game) -> Option<Self::Item>;
 
   fn to_iter(self, game: &Self::Game) -> GameIterator<'_, Self, Self::Game> {
-    GameIterator {
-      game,
-      game_iter: self,
-    }
+    GameIterator { game, game_iter: self }
   }
 }
 

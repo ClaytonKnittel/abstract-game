@@ -90,9 +90,7 @@ impl Game for TicTacToe {
   type MoveGenerator = TTTMoveGen;
 
   fn move_generator(&self) -> TTTMoveGen {
-    TTTMoveGen {
-      move_mask: 0x0001_0001,
-    }
+    TTTMoveGen { move_mask: 0x0001_0001 }
   }
 
   fn make_move(&mut self, m: TTTMove) {

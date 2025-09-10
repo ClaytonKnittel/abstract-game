@@ -26,10 +26,7 @@ pub struct Nim {
 
 impl Nim {
   pub fn new(sticks: u32) -> Self {
-    Self {
-      sticks,
-      player1: true,
-    }
+    Self { sticks, player1: true }
   }
 }
 

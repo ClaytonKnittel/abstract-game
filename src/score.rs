@@ -32,6 +32,20 @@ impl Score {
     Self::tie(0)
   }
 
+  /// Returns true if this score contains no info.
+  pub const fn has_no_info(&self) -> bool {
+    !self.cur_player_wins() && self.turn_count_tie() == 0 && self.turn_count_win() == 0
+  }
+
+  pub const fn is_tie(&self) -> bool {
+    self.turn_count_win() == 0
+  }
+
+  /// Returns true if this score represents an ancestor, e.g. is currently being computed.
+  pub const fn is_ancestor(&self) -> bool {
+    self.cur_player_wins() && self.turn_count_tie() == 0 && self.turn_count_win() == 0
+  }
+
   /// Construct a `Score` for the current player winning in `turn_count_win`
   /// moves.
   pub const fn win(turn_count_win: u32) -> Self {
@@ -157,6 +171,7 @@ impl Score {
   /// assumes that the scores are compatible, i.e. they don't contain
   /// conflicting information.
   pub const fn merge(&self, other: Self) -> Self {
+    debug_assert!(self.compatible(other));
     let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
     let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
@@ -326,6 +341,10 @@ mod tests {
   use googletest::{gtest, prelude::*};
 
   fn opposite_score(score: Score) -> Score {
+    if score.is_tie() || score.is_ancestor() {
+      return score;
+    }
+
     Score::new(
       !score.cur_player_wins(),
       score.turn_count_tie(),
@@ -334,13 +353,19 @@ mod tests {
   }
 
   fn check_compatible(s1: Score, s2: Score) {
-    assert!(s1.compatible(s2));
-    assert!(s2.compatible(s1));
+    assert!(s1.compatible(s2), "{s1} vs {s2}");
+    assert!(s2.compatible(s1), "{s2} vs {s1}");
 
     let opposite_s1 = opposite_score(s1);
     let opposite_s2 = opposite_score(s2);
-    assert!(opposite_s1.compatible(opposite_s2));
-    assert!(opposite_s2.compatible(opposite_s1));
+    assert!(
+      opposite_s1.compatible(opposite_s2),
+      "{opposite_s1} vs {opposite_s2}"
+    );
+    assert!(
+      opposite_s2.compatible(opposite_s1),
+      "{opposite_s2} vs {opposite_s1}"
+    );
   }
 
   fn check_incompatible(s1: Score, s2: Score) {
@@ -351,6 +376,25 @@ mod tests {
     let opposite_s2 = opposite_score(s2);
     assert!(!opposite_s1.compatible(opposite_s2));
     assert!(!opposite_s2.compatible(opposite_s1));
+  }
+
+  fn check_merge_eq(s1: Score, s2: Score, expected: Score) {
+    assert_eq!(s1.merge(s2), expected);
+    assert_eq!(s2.merge(s1), expected);
+
+    let opposite_s1 = opposite_score(s1);
+    let opposite_s2 = opposite_score(s2);
+    let opposite_expected = opposite_score(expected);
+    assert_eq!(
+      opposite_s1.merge(opposite_s2),
+      opposite_expected,
+      "Merging {opposite_s1} and {opposite_s2}"
+    );
+    assert_eq!(
+      opposite_s2.merge(opposite_s1),
+      opposite_expected,
+      "Merging {opposite_s2} and {opposite_s1}"
+    );
   }
 
   #[test]
@@ -387,7 +431,33 @@ mod tests {
 
   #[test]
   fn test_merge() {
-    assert_eq!(Score::no_info().merge(Score::win(10)), Score::win(10));
+    // Merging no_info with anything doesn't change the score.
+    check_merge_eq(Score::no_info(), Score::win(10), Score::win(10));
+    check_merge_eq(Score::no_info(), Score::lose(10), Score::lose(10));
+    check_merge_eq(Score::no_info(), Score::tie(10), Score::tie(10));
+    check_merge_eq(
+      Score::no_info(),
+      Score::optimal_win(10),
+      Score::optimal_win(10),
+    );
+    check_merge_eq(
+      Score::no_info(),
+      Score::optimal_lose(10),
+      Score::optimal_lose(10),
+    );
+
+    // Merging two wins/loses results in the smaller of the two.
+    check_merge_eq(Score::win(10), Score::win(5), Score::win(5));
+    check_merge_eq(
+      Score::new(true, 5, 40),
+      Score::new(true, 10, 20),
+      Score::new(true, 10, 20),
+    );
+    check_merge_eq(
+      Score::new(true, 5, 20),
+      Score::new(true, 10, 40),
+      Score::new(true, 10, 20),
+    );
   }
 
   #[gtest]
