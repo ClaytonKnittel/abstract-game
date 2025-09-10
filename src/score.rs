@@ -14,14 +14,38 @@ pub enum ScoreValue {
 
 #[derive(Clone, Copy)]
 pub struct Score {
-  pub(crate) data: (u16, u8),
+  /// Layout:
+  ///          31         30 -  23  22     -    12   11     -     0
+  /// +------------------+--------+----------------+----------------+
+  /// | cur player wins? | unused | turn count win | turn count tie |
+  /// +------------------+--------+----------------+----------------+
+  pub(crate) data: u32,
 }
 
 impl Score {
-  const MAX_WIN_DEPTH: u32 = 0x07ff;
-  const MAX_TIE_DEPTH: u32 = 0x0fff;
+  const TIE_BITS: u32 = 12;
+  const TIE_SHIFT: u32 = 0;
+  const MAX_TIE_DEPTH: u32 = (1 << Self::TIE_BITS) - 1;
+  const TIE_MASK: u32 = Self::MAX_TIE_DEPTH << Self::TIE_SHIFT;
+
+  const WIN_BITS: u32 = 11;
+  const WIN_SHIFT: u32 = Self::TIE_SHIFT + Self::TIE_BITS;
+  const MAX_WIN_DEPTH: u32 = (1 << Self::WIN_BITS) - 1;
+  const WIN_MASK: u32 = Self::MAX_WIN_DEPTH << Self::WIN_SHIFT;
+
+  const UNUSED_BITS: u32 = 8;
+  const UNUSED_SHIFT: u32 = Self::WIN_SHIFT + Self::WIN_BITS;
+
+  const CUR_PLAYER_WINS_SHIFT: u32 = Self::UNUSED_SHIFT + Self::UNUSED_BITS;
+  const CUR_PLAYER_WINS_MASK: u32 = 1 << Self::CUR_PLAYER_WINS_SHIFT;
+
+  /// Mark the current player as winning with turn_count_win_ = 0, which is an
+  /// impossible state to be in.
+  const ANCESTOR: Score = Score::new(true, 0, 0);
 
   pub const fn new(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> Self {
+    debug_assert!(turn_count_tie <= Self::MAX_TIE_DEPTH);
+    debug_assert!(turn_count_win <= Self::MAX_WIN_DEPTH);
     Self {
       data: Self::pack(cur_player_wins, turn_count_tie, turn_count_win),
     }
@@ -43,7 +67,7 @@ impl Score {
 
   /// Returns true if this score represents an ancestor, e.g. is currently being computed.
   pub const fn is_ancestor(&self) -> bool {
-    self.cur_player_wins() && self.turn_count_tie() == 0 && self.turn_count_win() == 0
+    self.data == Self::ANCESTOR.data
   }
 
   /// Construct a `Score` for the current player winning in `turn_count_win`
@@ -89,9 +113,7 @@ impl Score {
   /// explored. Will be overwritten with the actual score once its calculation
   /// is finished.
   const fn ancestor() -> Self {
-    // Mark the current player as winning with turn_count_win_ = 0, which is an
-    // impossible state to be in.
-    Self::new(true, 0, 0)
+    Self::ANCESTOR
   }
 
   /// The maximum depth that this score is determined to.
@@ -115,18 +137,15 @@ impl Score {
   }
 
   pub const fn cur_player_wins(&self) -> bool {
-    let (wins, _, _) = Self::unpack(self.data);
-    wins
+    (self.data & Self::CUR_PLAYER_WINS_MASK) != 0
   }
 
   pub const fn turn_count_tie(&self) -> u32 {
-    let (_, turn_count_tie, _) = Self::unpack(self.data);
-    turn_count_tie
+    (self.data & Self::TIE_MASK) >> Self::TIE_SHIFT
   }
 
   pub const fn turn_count_win(&self) -> u32 {
-    let (_, _, turn_count_win) = Self::unpack(self.data);
-    turn_count_win
+    (self.data & Self::WIN_MASK) >> Self::WIN_SHIFT
   }
 
   /// Transforms a score at a given state of the game to how that score would
@@ -136,16 +155,13 @@ impl Score {
   /// then it is turned into a winning move for the other player in n + 1
   /// steps.
   pub fn backstep(&self) -> Self {
-    let (mut cur_player_wins, mut turn_count_tie, mut turn_count_win) = Self::unpack(self.data);
-    if turn_count_win > 0 {
-      turn_count_win += 1;
-      cur_player_wins = !cur_player_wins;
-    }
-    if turn_count_tie != Self::MAX_TIE_DEPTH {
-      turn_count_tie += 1;
-    }
+    debug_assert!(self.turn_count_win() < Self::MAX_WIN_DEPTH);
+    let winning = (self.data & Self::WIN_MASK) != 0;
+    let guaranteed_tie = (self.data & Self::TIE_MASK) == Self::TIE_MASK;
 
-    Score::new(cur_player_wins, turn_count_tie, turn_count_win)
+    let to_add = (winning as u32 * ((1 << Self::WIN_SHIFT) | Self::CUR_PLAYER_WINS_MASK))
+      + (!guaranteed_tie as u32 * (1 << Self::TIE_SHIFT));
+    Score { data: self.data.wrapping_add(to_add) }
   }
 
   /// Transforms a score at a given state of the game to how that score would
@@ -155,16 +171,18 @@ impl Score {
   /// then it is turned into a winning move for the other player in n - 1
   /// steps.
   pub fn forwardstep(&self) -> Self {
-    let (mut cur_player_wins, mut turn_count_tie, mut turn_count_win) = Self::unpack(self.data);
-    if turn_count_win > 0 {
-      turn_count_win = (turn_count_win - 1).max(1);
-      cur_player_wins = !cur_player_wins;
-    }
-    if turn_count_tie > 0 && turn_count_tie != Self::MAX_TIE_DEPTH {
-      turn_count_tie -= 1;
-    }
+    let swap_player_turn = (self.data & Self::WIN_MASK) != 0;
+    let deduct_winning_turns = (self.data & Self::WIN_MASK) > (1 << Self::WIN_SHIFT);
+    let deduct_tied_turns =
+      (self.data & Self::TIE_MASK) != Self::TIE_MASK && (self.data & Self::TIE_MASK) != 0;
 
-    Score::new(cur_player_wins, turn_count_tie, turn_count_win)
+    Self {
+      data: self.data.wrapping_sub(
+        (swap_player_turn as u32 * Self::CUR_PLAYER_WINS_MASK)
+          + (deduct_winning_turns as u32 * (1 << Self::WIN_SHIFT))
+          + (deduct_tied_turns as u32 * (1 << Self::TIE_SHIFT)),
+      ),
+    }
   }
 
   /// Merges the information contained in another score into this one. This
@@ -259,21 +277,21 @@ impl Score {
     Score::new(self.cur_player_wins(), 0, self.turn_count_win())
   }
 
-  const fn pack(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> (u16, u8) {
+  const fn pack(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> u32 {
     debug_assert!(turn_count_tie <= Self::MAX_TIE_DEPTH);
     debug_assert!(turn_count_win <= Self::MAX_WIN_DEPTH);
 
-    let a: u16 = (turn_count_tie | (turn_count_win << 12)) as u16;
-    let b: u8 = ((turn_count_win >> 4) | if cur_player_wins { 0x80u32 } else { 0u32 }) as u8;
-    (a, b)
+    ((cur_player_wins as u32) << Self::CUR_PLAYER_WINS_SHIFT)
+      + (turn_count_tie << Self::TIE_SHIFT)
+      + (turn_count_win << Self::WIN_SHIFT)
   }
 
-  const fn unpack((a, b): (u16, u8)) -> (bool, u32, u32) {
-    let turn_count_tie = (a as u32) & Self::MAX_TIE_DEPTH;
-    let turn_count_win = ((a as u32) >> 12) | (((b as u32) & (Self::MAX_WIN_DEPTH >> 4)) << 4);
-    let cur_player_wins = ((b as u32) >> 7) != 0;
-
-    (cur_player_wins, turn_count_tie, turn_count_win)
+  const fn unpack(data: u32) -> (bool, u32, u32) {
+    (
+      (data & Self::CUR_PLAYER_WINS_MASK) != 0,
+      (data & Self::TIE_MASK) >> Self::TIE_SHIFT,
+      (data & Self::WIN_MASK) >> Self::WIN_SHIFT,
+    )
   }
 }
 
@@ -369,13 +387,19 @@ mod tests {
   }
 
   fn check_incompatible(s1: Score, s2: Score) {
-    assert!(!s1.compatible(s2));
-    assert!(!s2.compatible(s1));
+    assert!(!s1.compatible(s2), "{s1} vs {s2}");
+    assert!(!s2.compatible(s1), "{s2} vs {s1}");
 
     let opposite_s1 = opposite_score(s1);
     let opposite_s2 = opposite_score(s2);
-    assert!(!opposite_s1.compatible(opposite_s2));
-    assert!(!opposite_s2.compatible(opposite_s1));
+    assert!(
+      !opposite_s1.compatible(opposite_s2),
+      "{opposite_s1} vs {opposite_s2}"
+    );
+    assert!(
+      !opposite_s2.compatible(opposite_s1),
+      "{opposite_s2} vs {opposite_s1}"
+    );
   }
 
   fn check_merge_eq(s1: Score, s2: Score, expected: Score) {
