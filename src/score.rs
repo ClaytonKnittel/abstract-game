@@ -16,15 +16,17 @@ pub enum ScoreValue {
 #[derive(Clone, Copy)]
 pub struct Score {
   /// Layout:
+  /// ```text
   ///          31         30 -  23  22     -    12   11     -     0
   /// +------------------+--------+----------------+----------------+
   /// | cur player wins? | unused | turn count win | turn count tie |
   /// +------------------+--------+----------------+----------------+
+  /// ```
   pub(crate) data: u32,
 }
 
 impl Score {
-  const TIE_BITS: u32 = 12;
+  const TIE_BITS: u32 = 11;
   const TIE_SHIFT: u32 = 0;
   const MAX_TIE_DEPTH: u32 = (1 << Self::TIE_BITS) - 1;
   const TIE_MASK: u32 = Self::MAX_TIE_DEPTH << Self::TIE_SHIFT;
@@ -34,36 +36,50 @@ impl Score {
   const MAX_WIN_DEPTH: u32 = (1 << Self::WIN_BITS) - 1;
   const WIN_MASK: u32 = Self::MAX_WIN_DEPTH << Self::WIN_SHIFT;
 
-  const UNUSED_BITS: u32 = 8;
+  const UNUSED_BITS: u32 = 9;
   const UNUSED_SHIFT: u32 = Self::WIN_SHIFT + Self::WIN_BITS;
 
   const CUR_PLAYER_WINS_SHIFT: u32 = Self::UNUSED_SHIFT + Self::UNUSED_BITS;
   const CUR_PLAYER_WINS_MASK: u32 = 1 << Self::CUR_PLAYER_WINS_SHIFT;
 
+  /// A `Score` that contains no information.
+  const NO_INFO: Score = Score::new(false, 0, 0);
+
   /// Mark the current player as winning with turn_count_win_ = 0, which is an
   /// impossible state to be in.
-  const ANCESTOR: Score = Score::new(true, 0, 0);
+  const ANCESTOR: Score = Score { data: Self::CUR_PLAYER_WINS_MASK };
 
-  pub const fn new(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> Self {
+  const fn new(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> Self {
     debug_assert!(turn_count_tie <= Self::MAX_TIE_DEPTH);
-    debug_assert!(turn_count_win <= Self::MAX_WIN_DEPTH);
+    debug_assert!(turn_count_win < Self::MAX_WIN_DEPTH);
+    debug_assert!(
+      !cur_player_wins || turn_count_win != 0,
+      "If turn_count_win == 0, then this is a tie, and cur_player_wins must be false."
+    );
     Self {
-      data: Self::pack(cur_player_wins, turn_count_tie, turn_count_win),
+      data: Self::pack(
+        cur_player_wins,
+        turn_count_tie,
+        if turn_count_win == 0 {
+          Self::MAX_WIN_DEPTH
+        } else {
+          turn_count_win - 1
+        },
+      ),
     }
-  }
-
-  /// Construct a `Score` that contains no information.
-  pub const fn no_info() -> Self {
-    Self::tie(0)
   }
 
   /// Returns true if this score contains no info.
   pub const fn has_no_info(&self) -> bool {
-    !self.cur_player_wins() && self.turn_count_tie() == 0 && self.turn_count_win() == 0
+    self.data == Self::NO_INFO.data
   }
 
   pub const fn is_tie(&self) -> bool {
-    self.turn_count_win() == 0
+    (self.data & Self::WIN_MASK) == Self::WIN_MASK
+  }
+
+  pub const fn is_guaranteed_tie(&self) -> bool {
+    (self.data & Self::TIE_MASK) == Self::TIE_MASK
   }
 
   /// Returns true if this score represents an ancestor, e.g. is currently being computed.
@@ -138,16 +154,17 @@ impl Score {
     }
   }
 
-  pub const fn cur_player_wins(&self) -> bool {
+  const fn cur_player_wins(&self) -> bool {
     (self.data & Self::CUR_PLAYER_WINS_MASK) != 0
   }
 
-  pub const fn turn_count_tie(&self) -> u32 {
+  const fn turn_count_tie(&self) -> u32 {
     (self.data & Self::TIE_MASK) >> Self::TIE_SHIFT
   }
 
-  pub const fn turn_count_win(&self) -> u32 {
-    (self.data & Self::WIN_MASK) >> Self::WIN_SHIFT
+  const fn turn_count_win(&self) -> u32 {
+    debug_assert!(!self.is_tie());
+    ((self.data & Self::WIN_MASK) >> Self::WIN_SHIFT) + 1
   }
 
   /// Transforms a score at a given state of the game to how that score would
@@ -157,13 +174,9 @@ impl Score {
   /// then it is turned into a winning move for the other player in n + 1
   /// steps.
   pub fn backstep(&self) -> Self {
-    debug_assert!(self.turn_count_win() < Self::MAX_WIN_DEPTH);
-    let (_, tie_bits, win_bits) = self.unpack_unshifted();
-    let winning = win_bits != 0;
-    let guaranteed_tie = tie_bits == Self::TIE_MASK;
-
-    let to_add = (winning as u32 * ((1 << Self::WIN_SHIFT) | Self::CUR_PLAYER_WINS_MASK))
-      + (!guaranteed_tie as u32 * (1 << Self::TIE_SHIFT));
+    debug_assert!(self.is_tie() || self.turn_count_win() < Self::MAX_WIN_DEPTH);
+    let to_add = (!self.is_tie() as u32 * ((1 << Self::WIN_SHIFT) | Self::CUR_PLAYER_WINS_MASK))
+      + (!self.is_guaranteed_tie() as u32 * (1 << Self::TIE_SHIFT));
     Score { data: self.data.wrapping_add(to_add) }
   }
 
@@ -175,9 +188,9 @@ impl Score {
   /// steps.
   pub fn forwardstep(&self) -> Self {
     let (_, tie_bits, win_bits) = self.unpack_unshifted();
-    let swap_player_turn = win_bits != 0;
-    let deduct_winning_turns = win_bits > (1 << Self::WIN_SHIFT);
-    let deduct_tied_turns = tie_bits != Self::TIE_MASK && tie_bits != 0;
+    let swap_player_turn = !self.is_tie();
+    let deduct_winning_turns = swap_player_turn && win_bits != 0;
+    let deduct_tied_turns = !self.is_guaranteed_tie() && tie_bits != 0;
 
     Self {
       data: self.data.wrapping_sub(
@@ -198,10 +211,7 @@ impl Score {
     let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
 
     let tie = max_u32(tie1, tie2);
-
-    let win_one: u32 = 1 << Self::WIN_SHIFT;
-    let win = min_u32(win1.wrapping_sub(win_one), win2.wrapping_sub(win_one)).wrapping_add(win_one);
-
+    let win = min_u32(win1, win2);
     let cur_player_wins = cur_player_wins1 | cur_player_wins2;
 
     Score { data: tie + win + cur_player_wins }
@@ -212,7 +222,7 @@ impl Score {
   /// by a full search this deep).
   pub const fn determined(&self, search_depth: u32) -> bool {
     let (_, turn_count_tie, turn_count_win) = Self::unpack(self.data);
-    (turn_count_win != 0 && search_depth >= turn_count_win) || search_depth <= turn_count_tie
+    search_depth > turn_count_win || search_depth <= turn_count_tie
   }
 
   /// Returns true if the two scores don't contain conflicting information, i.e.
@@ -223,47 +233,24 @@ impl Score {
     let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
     let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
 
-    let tc_win1 = win1.wrapping_sub(1 << Self::WIN_SHIFT);
-    let tc_win2 = win2.wrapping_sub(1 << Self::WIN_SHIFT);
-    let agree = win1.overflowing_mul(win2).0 == 0 || cur_player_wins1 == cur_player_wins2;
+    let agree = self.is_tie() || other.is_tie() || cur_player_wins1 == cur_player_wins2;
 
-    tc_win1 >= (tie2 << tie_to_win_shift) && tc_win2 >= (tie1 << tie_to_win_shift) && agree
+    win1 >= (tie2 << tie_to_win_shift) && win2 >= (tie1 << tie_to_win_shift) && agree
   }
 
   /// True if this score is better than `other` for the current player.
   pub fn better(&self, other: Score) -> bool {
-    let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
-    let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
+    let transform_data = |data: u32| -> u32 {
+      let cpw_to_win_shift = Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_SHIFT;
+      let shifted_bits = (data as i32 >> cpw_to_win_shift) as u32;
+      let mask = shifted_bits & Self::WIN_MASK;
+      data ^ mask
+    };
 
-    if turn_count_win2 != 0 {
-      if cur_player_wins2 {
-        // If both scores were wins, the better is the one with the shortest
-        // path to victory.
-        turn_count_win1 != 0
-          && cur_player_wins1
-          && turn_count_win1
-            .cmp(&turn_count_win2)
-            .then(turn_count_tie2.cmp(&turn_count_tie1))
-            .is_lt()
-      } else {
-        // If both scores are losses, the better is the one with the longest
-        // path to losing.
-        turn_count_win1 == 0
-          || cur_player_wins1
-          || (turn_count_win2
-            .cmp(&turn_count_win1)
-            .then(turn_count_tie2.cmp(&turn_count_tie1)))
-          .is_lt()
-      }
-    } else if turn_count_win1 != 0 {
-      // If `other` is a tie and `this` is not, this is only better if it's a
-      // win.
-      cur_player_wins1
-    } else {
-      // If both scores were ties, the better is the score with the longest
-      // discovered tie depth.
-      turn_count_tie1 > turn_count_tie2
-    }
+    let data1 = transform_data(self.data);
+    let data2 = transform_data(other.data);
+
+    data1 > data2
   }
 
   /// Constructs a score for a game state where not all possible next moves were
@@ -466,7 +453,7 @@ mod tests {
     // Guaranteed tie is incompatible with anything that isn't a tie.
     check_compatible(Score::guaranteed_tie(), Score::guaranteed_tie());
     check_compatible(Score::guaranteed_tie(), Score::tie(10));
-    check_compatible(Score::guaranteed_tie(), Score::no_info());
+    check_compatible(Score::guaranteed_tie(), Score::NO_INFO);
 
     check_incompatible(Score::guaranteed_tie(), Score::win(1));
     check_incompatible(Score::guaranteed_tie(), Score::lose(1));
@@ -496,16 +483,16 @@ mod tests {
   #[test]
   fn test_merge() {
     // Merging no_info with anything doesn't change the score.
-    check_merge_eq(Score::no_info(), Score::win(10), Score::win(10));
-    check_merge_eq(Score::no_info(), Score::lose(10), Score::lose(10));
-    check_merge_eq(Score::no_info(), Score::tie(10), Score::tie(10));
+    check_merge_eq(Score::NO_INFO, Score::win(10), Score::win(10));
+    check_merge_eq(Score::NO_INFO, Score::lose(10), Score::lose(10));
+    check_merge_eq(Score::NO_INFO, Score::tie(10), Score::tie(10));
     check_merge_eq(
-      Score::no_info(),
+      Score::NO_INFO,
       Score::optimal_win(10),
       Score::optimal_win(10),
     );
     check_merge_eq(
-      Score::no_info(),
+      Score::NO_INFO,
       Score::optimal_lose(10),
       Score::optimal_lose(10),
     );
@@ -537,7 +524,7 @@ mod tests {
     expect_eq!(Score::win(1).backstep(), Score::optimal_lose(2));
     expect_eq!(Score::lose(1).backstep(), Score::optimal_win(2));
 
-    expect_eq!(Score::no_info().backstep(), Score::tie(1));
+    expect_eq!(Score::NO_INFO.backstep(), Score::tie(1));
     expect_eq!(Score::guaranteed_tie().backstep(), Score::guaranteed_tie());
   }
 
@@ -549,8 +536,8 @@ mod tests {
     expect_eq!(Score::win(1).forwardstep(), Score::lose(1));
     expect_eq!(Score::lose(1).forwardstep(), Score::win(1));
 
-    expect_eq!(Score::no_info().forwardstep(), Score::no_info());
-    expect_eq!(Score::tie(1).forwardstep(), Score::no_info());
+    expect_eq!(Score::NO_INFO.forwardstep(), Score::NO_INFO);
+    expect_eq!(Score::tie(1).forwardstep(), Score::NO_INFO);
     expect_eq!(
       Score::guaranteed_tie().forwardstep(),
       Score::guaranteed_tie()
@@ -568,7 +555,7 @@ mod tests {
     expect_gt!(Score::win(1), Score::guaranteed_tie());
 
     // Winning is better than no info.
-    expect_gt!(Score::win(1), Score::no_info());
+    expect_gt!(Score::win(1), Score::NO_INFO);
 
     // Winning in fewer moves is better than more moves.
     expect_gt!(Score::win(5), Score::win(10));
@@ -586,10 +573,10 @@ mod tests {
     // Given two ties, prefer the one with a deeper discovered depth.
     expect_gt!(Score::tie(10), Score::tie(5));
     expect_gt!(Score::guaranteed_tie(), Score::tie(10));
-    expect_gt!(Score::tie(5), Score::no_info());
+    expect_gt!(Score::tie(5), Score::NO_INFO);
 
     // Losing is worse than no info.
-    expect_gt!(Score::no_info(), Score::lose(10));
+    expect_gt!(Score::NO_INFO, Score::lose(10));
 
     // Given two losing scores, prefer the deeper one.
     expect_gt!(Score::lose(10), Score::lose(5));
