@@ -250,10 +250,10 @@ impl Score {
         // path to losing.
         turn_count_win1 == 0
           || cur_player_wins1
-          || (turn_count_win1
-            .cmp(&turn_count_win2)
-            .then(turn_count_tie1.cmp(&turn_count_tie2)))
-          .is_gt()
+          || (turn_count_win2
+            .cmp(&turn_count_win1)
+            .then(turn_count_tie2.cmp(&turn_count_tie1)))
+          .is_lt()
       }
     } else if turn_count_win1 != 0 {
       // If `other` is a tie and `this` is not, this is only better if it's a
