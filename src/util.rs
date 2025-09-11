@@ -3,13 +3,21 @@ macro_rules! define_cmp {
     #[allow(dead_code)]
     #[inline]
     pub const fn $max_name(a: $t, b: $t) -> $t {
-      [a, b][(a < b) as usize]
+      if a < b {
+        b
+      } else {
+        a
+      }
     }
 
     #[allow(dead_code)]
     #[inline]
     pub const fn $min_name(a: $t, b: $t) -> $t {
-      [a, b][(a >= b) as usize]
+      if a >= b {
+        b
+      } else {
+        a
+      }
     }
   };
 }
