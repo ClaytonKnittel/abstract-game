@@ -4,8 +4,6 @@ use std::{
   hint::unreachable_unchecked,
 };
 
-use crate::util::{max_u32, min_u32};
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScoreValue {
   CurrentPlayerWins,
@@ -135,7 +133,8 @@ impl Score {
 
   /// The maximum depth that this score is determined to.
   pub fn determined_depth(&self) -> u32 {
-    self.turn_count_tie().max(self.turn_count_win())
+    let (_, tie, win) = Self::unpack(self.data + (1 << Self::WIN_SHIFT));
+    tie.max(win)
   }
 
   /// The score of the game given `depth` moves to play.
@@ -187,7 +186,7 @@ impl Score {
   /// then it is turned into a winning move for the other player in n - 1
   /// steps.
   pub fn forwardstep(&self) -> Self {
-    let (_, tie_bits, win_bits) = self.unpack_unshifted();
+    let (_, tie_bits, win_bits) = Self::unpack_unshifted(self.data);
     let swap_player_turn = !self.is_tie();
     let deduct_winning_turns = swap_player_turn && win_bits != 0;
     let deduct_tied_turns = !self.is_guaranteed_tie() && tie_bits != 0;
@@ -207,11 +206,11 @@ impl Score {
   pub fn merge(&self, other: Self) -> Self {
     debug_assert!(self.compatible(other));
 
-    let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
-    let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
+    let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
+    let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
 
-    let tie = max_u32(tie1, tie2);
-    let win = min_u32(win1, win2);
+    let tie = tie1.max(tie2);
+    let win = win1.min(win2);
     let cur_player_wins = cur_player_wins1 | cur_player_wins2;
 
     Score { data: tie + win + cur_player_wins }
@@ -230,8 +229,8 @@ impl Score {
   pub fn compatible(&self, other: Score) -> bool {
     let tie_to_win_shift = Self::WIN_SHIFT - Self::TIE_SHIFT;
 
-    let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
-    let (cur_player_wins2, tie2, win2) = other.unpack_unshifted();
+    let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
+    let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
 
     let agree = self.is_tie() || other.is_tie() || cur_player_wins1 == cur_player_wins2;
 
@@ -271,11 +270,11 @@ impl Score {
       + (turn_count_win << Self::WIN_SHIFT)
   }
 
-  const fn unpack_unshifted(&self) -> (u32, u32, u32) {
+  const fn unpack_unshifted(data: u32) -> (u32, u32, u32) {
     (
-      self.data & Self::CUR_PLAYER_WINS_MASK,
-      self.data & Self::TIE_MASK,
-      self.data & Self::WIN_MASK,
+      data & Self::CUR_PLAYER_WINS_MASK,
+      data & Self::TIE_MASK,
+      data & Self::WIN_MASK,
     )
   }
 
