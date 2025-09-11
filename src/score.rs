@@ -253,12 +253,10 @@ impl Score {
   }
 
   /// Constructs a score for a game state where not all possible next moves were
-  /// explored. This sets `turn_count_tie` to 1, since we can't prove that there
-  /// is no forced win out to any depth other than 1, since depth 1 is
-  /// preemptively checked for immediate wins.
+  /// explored. This sets `turn_count_tie` to 0, since we can't prove that there
+  /// is no forced win out to any depth.
   pub fn break_early(&self) -> Self {
-    debug_assert_ne!(self.turn_count_win(), 0);
-    Score::new(self.cur_player_wins(), 0, self.turn_count_win())
+    Score { data: self.data & !Self::TIE_MASK }
   }
 
   const fn pack(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> u32 {
@@ -516,6 +514,17 @@ mod tests {
       Score::tie(10),
       Score::new(true, 10, 20),
     );
+  }
+
+  #[gtest]
+  fn test_determined_depth() {
+    expect_eq!(Score::win(3).determined_depth(), 3);
+    expect_eq!(Score::optimal_win(3).determined_depth(), 3);
+    expect_eq!(Score::lose(3).determined_depth(), 3);
+    expect_eq!(Score::optimal_lose(3).determined_depth(), 3);
+    expect_eq!(Score::tie(3).determined_depth(), 3);
+
+    expect_eq!(Score::NO_INFO.determined_depth(), 0);
   }
 
   #[gtest]
