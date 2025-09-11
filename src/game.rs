@@ -13,6 +13,10 @@ impl GamePlayer {
     matches!(self, GamePlayer::Player1)
   }
 
+  pub fn is_p2(&self) -> bool {
+    matches!(self, GamePlayer::Player2)
+  }
+
   pub fn opposite(&self) -> Self {
     match self {
       Self::Player1 => Self::Player2,
@@ -22,26 +26,26 @@ impl GamePlayer {
 }
 
 pub trait GameMoveIterator: Sized {
-  type Item;
-  type Game;
+  type Game: crate::Game;
 
-  fn next(&mut self, game: &Self::Game) -> Option<Self::Item>;
+  fn next(&mut self, game: &Self::Game) -> Option<<Self::Game as crate::Game>::Move>;
 
   fn to_iter(self, game: &Self::Game) -> GameIterator<'_, Self, Self::Game> {
     GameIterator { game, game_iter: self }
   }
 }
 
-pub struct GameIterator<'a, GI, G> {
+pub struct GameIterator<'a, I, G> {
   game: &'a G,
-  game_iter: GI,
+  game_iter: I,
 }
 
-impl<GI, I, G> Iterator for GameIterator<'_, GI, G>
+impl<I, G> Iterator for GameIterator<'_, I, G>
 where
-  GI: GameMoveIterator<Item = I, Game = G>,
+  I: GameMoveIterator<Game = G>,
+  G: Game,
 {
-  type Item = I;
+  type Item = G::Move;
 
   fn next(&mut self) -> Option<Self::Item> {
     self.game_iter.next(self.game)
@@ -63,7 +67,7 @@ impl GameResult {
 
 pub trait Game: Clone + Debug + Sized {
   type Move: Copy + Debug;
-  type MoveGenerator: GameMoveIterator<Item = Self::Move, Game = Self>;
+  type MoveGenerator: GameMoveIterator<Game = Self>;
 
   fn move_generator(&self) -> Self::MoveGenerator;
   fn each_move(&self) -> GameIterator<'_, Self::MoveGenerator, Self> {

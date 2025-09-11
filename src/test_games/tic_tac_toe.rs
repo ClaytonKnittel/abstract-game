@@ -34,7 +34,6 @@ pub struct TTTMoveGen {
 }
 
 impl GameMoveIterator for TTTMoveGen {
-  type Item = TTTMove;
   type Game = TicTacToe;
 
   fn next(&mut self, game: &TicTacToe) -> Option<TTTMove> {

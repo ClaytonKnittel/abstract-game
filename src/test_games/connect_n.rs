@@ -43,7 +43,6 @@ pub struct ConnectMoveGen {
 }
 
 impl GameMoveIterator for ConnectMoveGen {
-  type Item = ConnectMove;
   type Game = ConnectN;
 
   fn next(&mut self, game: &ConnectN) -> Option<ConnectMove> {

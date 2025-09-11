@@ -5,10 +5,9 @@ pub struct NimMoveIter {
 }
 
 impl GameMoveIterator for NimMoveIter {
-  type Item = u32;
   type Game = Nim;
 
-  fn next(&mut self, nim: &Nim) -> Option<Self::Item> {
+  fn next(&mut self, nim: &Nim) -> Option<u32> {
     if self.sticks >= 2.min(nim.sticks) {
       None
     } else {
