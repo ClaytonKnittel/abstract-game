@@ -642,4 +642,14 @@ mod tests {
     // higher discovered tie depth.
     expect_gt!(Score::optimal_lose(10), Score::lose(10));
   }
+
+  #[gtest]
+  fn test_break_early() {
+    expect_eq!(Score::win(3).break_early(), Score::win(3));
+    expect_eq!(Score::optimal_win(3).break_early(), Score::win(3));
+    expect_eq!(Score::lose(3).break_early(), Score::lose(3));
+    expect_eq!(Score::optimal_lose(3).break_early(), Score::lose(3));
+    expect_eq!(Score::tie(5).break_early(), Score::NO_INFO);
+    expect_eq!(Score::guaranteed_tie().break_early(), Score::NO_INFO);
+  }
 }
