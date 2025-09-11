@@ -417,6 +417,40 @@ mod tests {
     );
   }
 
+  #[gtest]
+  fn test_determined() {
+    expect_true!(Score::win(10).determined(10));
+    expect_false!(Score::win(10).determined(9));
+    expect_false!(Score::win(10).determined(1));
+    expect_true!(Score::win(10).determined(0));
+    expect_true!(Score::win(10).determined(100));
+
+    expect_true!(Score::lose(10).determined(10));
+    expect_false!(Score::lose(10).determined(9));
+    expect_false!(Score::lose(10).determined(1));
+    expect_true!(Score::lose(10).determined(0));
+    expect_true!(Score::lose(10).determined(100));
+
+    expect_true!(Score::optimal_win(10).determined(10));
+    expect_true!(Score::optimal_win(10).determined(9));
+    expect_true!(Score::optimal_win(10).determined(0));
+    expect_true!(Score::optimal_win(10).determined(100));
+
+    expect_true!(Score::optimal_lose(10).determined(10));
+    expect_true!(Score::optimal_lose(10).determined(9));
+    expect_true!(Score::optimal_lose(10).determined(0));
+    expect_true!(Score::optimal_lose(10).determined(100));
+
+    expect_true!(Score::guaranteed_tie().determined(0));
+    expect_true!(Score::guaranteed_tie().determined(1));
+    expect_true!(Score::guaranteed_tie().determined(10));
+
+    expect_true!(Score::tie(5).determined(5));
+    expect_true!(Score::tie(5).determined(1));
+    expect_false!(Score::tie(5).determined(6));
+    expect_false!(Score::tie(5).determined(100));
+  }
+
   #[test]
   fn test_compatible() {
     // Guaranteed tie is incompatible with anything that isn't a tie.
