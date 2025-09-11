@@ -31,9 +31,8 @@ impl Nim {
 
 impl Game for Nim {
   type Move = u32;
-  type MoveGenerator = NimMoveIter;
 
-  fn move_generator(&self) -> NimMoveIter {
+  fn move_generator(&self) -> impl GameMoveIterator<Game = Self> {
     NimMoveIter { sticks: 0 }
   }
 

@@ -128,9 +128,8 @@ impl ConnectN {
 
 impl Game for ConnectN {
   type Move = ConnectMove;
-  type MoveGenerator = ConnectMoveGen;
 
-  fn move_generator(&self) -> ConnectMoveGen {
+  fn move_generator(&self) -> impl GameMoveIterator<Game = Self> {
     ConnectMoveGen { col: 0 }
   }
 

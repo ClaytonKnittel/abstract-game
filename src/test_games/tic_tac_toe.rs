@@ -86,9 +86,8 @@ impl Default for TicTacToe {
 
 impl Game for TicTacToe {
   type Move = TTTMove;
-  type MoveGenerator = TTTMoveGen;
 
-  fn move_generator(&self) -> TTTMoveGen {
+  fn move_generator(&self) -> impl GameMoveIterator<Game = Self> {
     TTTMoveGen { move_mask: 0x0001_0001 }
   }
 

@@ -67,10 +67,11 @@ impl GameResult {
 
 pub trait Game: Clone + Debug + Sized {
   type Move: Copy + Debug;
-  type MoveGenerator: GameMoveIterator<Game = Self>;
 
-  fn move_generator(&self) -> Self::MoveGenerator;
-  fn each_move(&self) -> GameIterator<'_, Self::MoveGenerator, Self> {
+  fn move_generator(&self) -> impl GameMoveIterator<Game = Self>;
+
+  /// Returns an iterator over the moves that can be made from this position.
+  fn each_move(&self) -> impl Iterator<Item = Self::Move> {
     self.move_generator().to_iter(self)
   }
 
