@@ -26,9 +26,9 @@ impl GamePlayer {
 }
 
 pub trait GameMoveIterator: Sized {
-  type Game: crate::Game;
+  type Game: Game;
 
-  fn next(&mut self, game: &Self::Game) -> Option<<Self::Game as crate::Game>::Move>;
+  fn next(&mut self, game: &Self::Game) -> Option<<Self::Game as Game>::Move>;
 
   fn to_iter(self, game: &Self::Game) -> GameIterator<'_, Self, Self::Game> {
     GameIterator { game, game_iter: self }
