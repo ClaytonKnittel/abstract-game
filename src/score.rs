@@ -204,7 +204,7 @@ impl Score {
   /// Merges the information contained in another score into this one. This
   /// assumes that the scores are compatible, i.e. they don't contain
   /// conflicting information.
-  pub const fn merge(&self, other: Self) -> Self {
+  pub fn merge(&self, other: Self) -> Self {
     debug_assert!(self.compatible(other));
 
     let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
@@ -220,14 +220,14 @@ impl Score {
   /// True if this score can be used in place of a search that goes
   /// `search_depth` moves deep (i.e. this score will equal the score calculated
   /// by a full search this deep).
-  pub const fn determined(&self, search_depth: u32) -> bool {
+  pub fn determined(&self, search_depth: u32) -> bool {
     let (_, turn_count_tie, turn_count_win) = Self::unpack(self.data);
     search_depth > turn_count_win || search_depth <= turn_count_tie
   }
 
   /// Returns true if the two scores don't contain conflicting information, i.e.
   /// they are compatible. If true, the scores can be safely `Score::merge`d.
-  pub const fn compatible(&self, other: Score) -> bool {
+  pub fn compatible(&self, other: Score) -> bool {
     let tie_to_win_shift = Self::WIN_SHIFT - Self::TIE_SHIFT;
 
     let (cur_player_wins1, tie1, win1) = self.unpack_unshifted();
