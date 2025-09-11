@@ -651,5 +651,6 @@ mod tests {
     expect_eq!(Score::optimal_lose(3).break_early(), Score::lose(3));
     expect_eq!(Score::tie(5).break_early(), Score::NO_INFO);
     expect_eq!(Score::guaranteed_tie().break_early(), Score::NO_INFO);
+    expect_eq!(Score::NO_INFO.break_early(), Score::NO_INFO);
   }
 }
