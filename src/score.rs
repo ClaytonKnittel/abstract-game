@@ -163,7 +163,7 @@ impl Score {
 
   const fn turn_count_win(&self) -> u32 {
     debug_assert!(!self.is_tie());
-    ((self.data & Self::WIN_MASK) >> Self::WIN_SHIFT) + 1
+    ((self.data + (1 << Self::WIN_SHIFT)) & Self::WIN_MASK) >> Self::WIN_SHIFT
   }
 
   /// Transforms a score at a given state of the game to how that score would
@@ -344,7 +344,7 @@ impl Display for Score {
 
 #[cfg(test)]
 mod tests {
-  use crate::Score;
+  use crate::{Score, ScoreValue};
 
   use googletest::{gtest, prelude::*};
 
@@ -525,6 +525,55 @@ mod tests {
     expect_eq!(Score::tie(3).determined_depth(), 3);
 
     expect_eq!(Score::NO_INFO.determined_depth(), 0);
+  }
+
+  #[gtest]
+  fn test_score_at_depth() {
+    expect_eq!(
+      Score::win(3).score_at_depth(3),
+      ScoreValue::CurrentPlayerWins
+    );
+    expect_eq!(
+      Score::win(3).score_at_depth(10),
+      ScoreValue::CurrentPlayerWins
+    );
+
+    expect_eq!(
+      Score::optimal_win(3).score_at_depth(3),
+      ScoreValue::CurrentPlayerWins
+    );
+    expect_eq!(
+      Score::optimal_win(3).score_at_depth(10),
+      ScoreValue::CurrentPlayerWins
+    );
+    expect_eq!(Score::optimal_win(3).score_at_depth(2), ScoreValue::Tie);
+
+    expect_eq!(
+      Score::lose(3).score_at_depth(3),
+      ScoreValue::OtherPlayerWins
+    );
+    expect_eq!(
+      Score::lose(3).score_at_depth(10),
+      ScoreValue::OtherPlayerWins
+    );
+
+    expect_eq!(
+      Score::optimal_lose(3).score_at_depth(3),
+      ScoreValue::OtherPlayerWins
+    );
+    expect_eq!(
+      Score::optimal_lose(3).score_at_depth(10),
+      ScoreValue::OtherPlayerWins
+    );
+    expect_eq!(Score::optimal_lose(3).score_at_depth(2), ScoreValue::Tie);
+
+    expect_eq!(Score::tie(3).score_at_depth(3), ScoreValue::Tie);
+    expect_eq!(Score::tie(3).score_at_depth(0), ScoreValue::Tie);
+
+    expect_eq!(Score::guaranteed_tie().score_at_depth(100), ScoreValue::Tie);
+    expect_eq!(Score::guaranteed_tie().score_at_depth(0), ScoreValue::Tie);
+
+    expect_eq!(Score::NO_INFO.score_at_depth(0), ScoreValue::Tie);
   }
 
   #[gtest]
