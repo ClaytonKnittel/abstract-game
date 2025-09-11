@@ -231,7 +231,7 @@ impl Score {
   }
 
   /// True if this score is better than `other` for the current player.
-  pub const fn better(&self, other: Score) -> bool {
+  pub fn better(&self, other: Score) -> bool {
     let (cur_player_wins1, turn_count_tie1, turn_count_win1) = Self::unpack(self.data);
     let (cur_player_wins2, turn_count_tie2, turn_count_win2) = Self::unpack(other.data);
 
@@ -239,20 +239,30 @@ impl Score {
       if cur_player_wins2 {
         // If both scores were wins, the better is the one with the shortest
         // path to victory.
-        turn_count_win1 != 0 && cur_player_wins1 && turn_count_win1 < turn_count_win2
+        turn_count_win1 != 0
+          && cur_player_wins1
+          && turn_count_win1
+            .cmp(&turn_count_win2)
+            .then(turn_count_tie2.cmp(&turn_count_tie1))
+            .is_lt()
       } else {
         // If both scores are losses, the better is the one with the longest
         // path to losing.
-        turn_count_win1 == 0 || cur_player_wins1 || turn_count_win1 > turn_count_win2
+        turn_count_win1 == 0
+          || cur_player_wins1
+          || (turn_count_win1
+            .cmp(&turn_count_win2)
+            .then(turn_count_tie1.cmp(&turn_count_tie2)))
+          .is_gt()
       }
     } else if turn_count_win1 != 0 {
       // If `other` is a tie and `this` is not, this is only better if it's a
       // win.
       cur_player_wins1
     } else {
-      // If both scores were ties, the better is the score with the shortest
+      // If both scores were ties, the better is the score with the longest
       // discovered tie depth.
-      turn_count_tie1 < turn_count_tie2
+      turn_count_tie1 > turn_count_tie2
     }
   }
 
@@ -545,5 +555,47 @@ mod tests {
       Score::guaranteed_tie().forwardstep(),
       Score::guaranteed_tie()
     );
+  }
+
+  #[gtest]
+  fn test_better() {
+    // Winning is better than losing.
+    expect_gt!(Score::win(1), Score::lose(1));
+    expect_gt!(Score::win(100), Score::lose(1));
+
+    // Winning is better than tying.
+    expect_gt!(Score::win(1), Score::tie(1));
+    expect_gt!(Score::win(1), Score::guaranteed_tie());
+
+    // Winning is better than no info.
+    expect_gt!(Score::win(1), Score::no_info());
+
+    // Winning in fewer moves is better than more moves.
+    expect_gt!(Score::win(5), Score::win(10));
+
+    // If the number of moves to a win is equal, prefer the move with a higher
+    // discovered tie depth, which has a higher chance of pruning when
+    // searching.
+    expect_gt!(Score::optimal_win(5), Score::win(5));
+
+    // Tying is better than losing.
+    expect_gt!(Score::tie(1), Score::lose(1));
+    expect_gt!(Score::tie(10), Score::lose(1));
+    expect_gt!(Score::tie(1), Score::lose(10));
+
+    // Given two ties, prefer the one with a deeper discovered depth.
+    expect_gt!(Score::tie(10), Score::tie(5));
+    expect_gt!(Score::guaranteed_tie(), Score::tie(10));
+    expect_gt!(Score::tie(5), Score::no_info());
+
+    // Losing is worse than no info.
+    expect_gt!(Score::no_info(), Score::lose(10));
+
+    // Given two losing scores, prefer the deeper one.
+    expect_gt!(Score::lose(10), Score::lose(5));
+
+    // If both scores are losing to the same depth, prefer the one with a
+    // higher discovered tie depth.
+    expect_gt!(Score::optimal_lose(10), Score::lose(10));
   }
 }
