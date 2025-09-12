@@ -11,6 +11,20 @@ pub enum ScoreValue {
   Tie,
 }
 
+impl ScoreValue {
+  pub fn is_winning(&self) -> bool {
+    matches!(self, ScoreValue::CurrentPlayerWins)
+  }
+
+  pub fn is_losing(&self) -> bool {
+    matches!(self, ScoreValue::OtherPlayerWins)
+  }
+
+  pub fn is_tied(&self) -> bool {
+    matches!(self, ScoreValue::Tie)
+  }
+}
+
 #[derive(Clone, Copy)]
 pub struct Score {
   /// Layout:
