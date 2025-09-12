@@ -315,21 +315,19 @@ impl Debug for Score {
 
 impl Display for Score {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let (cur_player_wins, turn_count_tie, turn_count_win) = Self::unpack(self.data);
-
     if *self == Self::ANCESTOR {
       write!(f, "[ancestor]")
-    } else if turn_count_win == 0 {
-      if turn_count_tie == Self::MAX_TIE_DEPTH {
-        write!(f, "[tie:∞]")
-      } else {
-        write!(f, "[tie:{turn_count_tie}]")
-      }
+    } else if self.is_guaranteed_tie() {
+      write!(f, "[tie:∞]")
+    } else if self.is_tie() {
+      write!(f, "[tie:{}]", self.turn_count_tie())
     } else {
       write!(
         f,
-        "[tie:{turn_count_tie},{}:{turn_count_win}]",
-        if cur_player_wins { "cur" } else { "oth" }
+        "[tie:{},{}:{}]",
+        self.turn_count_tie(),
+        if self.cur_player_wins() { "cur" } else { "oth" },
+        self.turn_count_win(),
       )
     }
   }
