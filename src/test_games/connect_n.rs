@@ -75,7 +75,7 @@ impl From<TileState> for Option<GamePlayer> {
   }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ConnectN {
   board: Vec<u32>,
   width: u32,

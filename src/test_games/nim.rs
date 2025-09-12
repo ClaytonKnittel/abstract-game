@@ -17,7 +17,7 @@ impl GameMoveIterator for NimMoveIter {
   }
 }
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Nim {
   sticks: u32,
   player1: bool,
