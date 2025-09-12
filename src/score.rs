@@ -41,11 +41,12 @@ impl Score {
   const CUR_PLAYER_WINS_MASK: u32 = 1 << Self::CUR_PLAYER_WINS_SHIFT;
 
   /// A `Score` that contains no information.
-  const NO_INFO: Score = Score::new(false, 0, 0);
+  pub const NO_INFO: Score = Score::new(false, 0, 0);
 
-  /// Mark the current player as winning with turn_count_win_ = 0, which is an
-  /// impossible state to be in.
-  const ANCESTOR: Score = Score { data: Self::CUR_PLAYER_WINS_MASK };
+  /// Used to mark a game state as an ancestor of the current tree being
+  /// explored. Will be overwritten with the actual score once its calculation
+  /// is finished.
+  pub const ANCESTOR: Score = Score { data: Self::CUR_PLAYER_WINS_MASK };
 
   const fn new(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> Self {
     debug_assert!(turn_count_tie <= Self::MAX_TIE_DEPTH);
@@ -122,13 +123,6 @@ impl Score {
   /// into the future.
   pub const fn guaranteed_tie() -> Self {
     Score::tie(Self::MAX_TIE_DEPTH)
-  }
-
-  /// Used to mark a game state as an ancestor of the current tree being
-  /// explored. Will be overwritten with the actual score once its calculation
-  /// is finished.
-  const fn ancestor() -> Self {
-    Self::ANCESTOR
   }
 
   /// The maximum depth that this score is determined to.
@@ -324,7 +318,7 @@ impl Display for Score {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let (cur_player_wins, turn_count_tie, turn_count_win) = Self::unpack(self.data);
 
-    if self == &Self::ancestor() {
+    if *self == Self::ANCESTOR {
       write!(f, "[ancestor]")
     } else if turn_count_win == 0 {
       if turn_count_tie == Self::MAX_TIE_DEPTH {
