@@ -8,9 +8,20 @@ pub enum MoveLoss {
 }
 
 pub trait Solver {
-  fn best_move<G: Game>(&mut self, game: &G, depth: u32) -> (Score, Option<G::Move>);
+  type Game: Game;
 
-  fn move_loss<G: Game>(&mut self, m: G::Move, game: &G, depth: u32) -> MoveLoss {
+  fn best_move(
+    &mut self,
+    game: &Self::Game,
+    depth: u32,
+  ) -> (Score, Option<<Self::Game as Game>::Move>);
+
+  fn move_loss(
+    &mut self,
+    m: <Self::Game as Game>::Move,
+    game: &Self::Game,
+    depth: u32,
+  ) -> MoveLoss {
     debug_assert!(!game.finished().is_finished());
     let (cur_score, _) = self.best_move(game, depth);
     let (move_score, _) = self.best_move(&game.with_move(m), depth - 1);
@@ -24,7 +35,11 @@ pub trait Solver {
     }
   }
 
-  fn playout<G: Game>(&mut self, game: &G, depth: u32) -> impl Iterator<Item = (G, G::Move)> {
+  fn playout(
+    &mut self,
+    game: &Self::Game,
+    depth: u32,
+  ) -> impl Iterator<Item = (Self::Game, <Self::Game as Game>::Move)> {
     let (_, m) = self.best_move(game, depth);
     successors(m.map(|m| (game.with_move(m), m)), move |(game, _)| {
       if matches!(game.finished(), GameResult::Win(_) | GameResult::Tie) {
