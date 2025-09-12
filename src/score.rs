@@ -73,6 +73,14 @@ impl Score {
     self.data == Self::NO_INFO.data
   }
 
+  pub const fn is_winning(&self) -> bool {
+    self.cur_player_wins()
+  }
+
+  pub const fn is_losing(&self) -> bool {
+    !self.cur_player_wins() && !self.is_tie()
+  }
+
   pub const fn is_tie(&self) -> bool {
     (self.data & Self::WIN_MASK) == Self::WIN_MASK
   }
@@ -614,6 +622,7 @@ mod tests {
   fn test_backstep() {
     expect_eq!(Score::win(1).backstep(), Score::optimal_lose(2));
     expect_eq!(Score::lose(1).backstep(), Score::optimal_win(2));
+    expect_eq!(Score::tie(1).backstep(), Score::tie(2));
 
     expect_eq!(Score::NO_INFO.backstep(), Score::tie(1));
     expect_eq!(Score::guaranteed_tie().backstep(), Score::guaranteed_tie());
