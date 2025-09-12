@@ -125,6 +125,13 @@ impl Score {
     Score::tie(Self::MAX_TIE_DEPTH)
   }
 
+  /// Returns true if this score is determined at every depth, meaning we know
+  /// exactly the minimum moves to force a win, or it's a guaranteed tie.
+  pub fn fully_determined(&self) -> bool {
+    let (_, tie, win) = Self::unpack(self.data);
+    tie == win
+  }
+
   /// The maximum depth that this score is determined to.
   pub fn determined_depth(&self) -> u32 {
     let (_, tie, win) = Self::unpack(self.data + (1 << Self::WIN_SHIFT));
@@ -421,6 +428,21 @@ mod tests {
 
     expect_eq!(Score::NO_INFO.turn_count_win(), 0);
     expect_eq!(Score::NO_INFO.turn_count_tie(), 0);
+  }
+
+  #[gtest]
+  fn test_fully_determined() {
+    expect_true!(Score::optimal_win(4).fully_determined());
+    expect_true!(Score::optimal_lose(6).fully_determined());
+    expect_false!(Score::win(3).fully_determined());
+    expect_false!(Score::lose(2).fully_determined());
+    expect_false!(Score::new(true, 3, 5).fully_determined());
+
+    expect_true!(Score::guaranteed_tie().fully_determined());
+    expect_false!(Score::tie(1).fully_determined());
+    expect_false!(Score::tie(4).fully_determined());
+
+    expect_false!(Score::NO_INFO.fully_determined());
   }
 
   #[gtest]
