@@ -156,7 +156,6 @@ impl Score {
   }
 
   const fn turn_count_win(&self) -> u32 {
-    debug_assert!(!self.is_tie());
     ((self.data + (1 << Self::WIN_SHIFT)) & Self::WIN_MASK) >> Self::WIN_SHIFT
   }
 
@@ -403,6 +402,27 @@ mod tests {
       opposite_expected,
       "Merging {opposite_s2} and {opposite_s1}"
     );
+  }
+
+  #[gtest]
+  fn test_turn_count() {
+    expect_eq!(Score::win(10).turn_count_win(), 10);
+    expect_eq!(Score::lose(10).turn_count_win(), 10);
+    expect_eq!(Score::optimal_win(10).turn_count_win(), 10);
+    expect_eq!(Score::optimal_lose(10).turn_count_win(), 10);
+
+    expect_eq!(Score::win(10).turn_count_tie(), 0);
+    expect_eq!(Score::lose(10).turn_count_tie(), 0);
+    expect_eq!(Score::optimal_win(10).turn_count_tie(), 9);
+    expect_eq!(Score::optimal_lose(10).turn_count_tie(), 9);
+
+    expect_eq!(Score::tie(3).turn_count_win(), 0);
+    expect_eq!(Score::tie(3).turn_count_tie(), 3);
+
+    expect_eq!(Score::guaranteed_tie().turn_count_win(), 0);
+
+    expect_eq!(Score::NO_INFO.turn_count_win(), 0);
+    expect_eq!(Score::NO_INFO.turn_count_tie(), 0);
   }
 
   #[gtest]
