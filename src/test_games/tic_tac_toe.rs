@@ -52,7 +52,7 @@ impl GameMoveIterator for TTTMoveGen {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct TicTacToe {
   board: u32,
   current_player: GamePlayer,

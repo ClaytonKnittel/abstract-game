@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 /// Arbitrary labels to assign to each of the two players of a game. `Player1`
 /// does not need to be the first player.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GamePlayer {
   Player1,
   Player2,
