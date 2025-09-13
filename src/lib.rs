@@ -1,3 +1,5 @@
+pub mod complete_solver;
+pub mod determined_score;
 mod game;
 mod score;
 mod solver;
