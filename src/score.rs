@@ -295,6 +295,25 @@ impl Score {
     Score { data: tie + win + cur_player_wins }
   }
 
+  /// Accumulates two scores which are both reachable from a particular
+  /// position. Can be used to determine the score of a position by
+  /// accumulating the backstepped scores of all children of that position.
+  pub fn accumulate(&self, other: Self) -> Self {
+    let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
+    let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
+
+    let invert_mask1 = Self::invert_win_mask(self.data);
+    let invert_mask2 = Self::invert_win_mask(other.data);
+
+    let win1 = (cur_player_wins1 | win1) ^ invert_mask1;
+    let win2 = (cur_player_wins2 | win2) ^ invert_mask2;
+
+    let tie = tie1.min(tie2);
+    let win = win1.max(win2) ^ (invert_mask1 | invert_mask2);
+
+    Score { data: tie + win }
+  }
+
   /// True if this score can be used in place of a search that goes
   /// `search_depth` moves deep (i.e. this score will equal the score calculated
   /// by a full search this deep).
@@ -318,15 +337,8 @@ impl Score {
 
   /// True if this score is better than `other` for the current player.
   pub fn better(&self, other: Score) -> bool {
-    let transform_data = |data: u32| -> u32 {
-      let cpw_to_win_shift = Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_SHIFT;
-      let shifted_bits = (data as i32 >> cpw_to_win_shift) as u32;
-      let mask = shifted_bits & Self::WIN_MASK;
-      data ^ mask
-    };
-
-    let data1 = transform_data(self.data);
-    let data2 = transform_data(other.data);
+    let data1 = self.data ^ Self::invert_win_mask(self.data);
+    let data2 = other.data ^ Self::invert_win_mask(other.data);
 
     data1 > data2
   }
@@ -344,6 +356,14 @@ impl Score {
     Score {
       data: (self.data & tie_mask) | losing_mask,
     }
+  }
+
+  /// If the current player is winning, returns a mask with the bits in
+  /// WIN_MASK set, otherwise returning 0.
+  fn invert_win_mask(data: u32) -> u32 {
+    let cpw_to_win_shift = Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_SHIFT;
+    let shifted_bits = (data as i32 >> cpw_to_win_shift) as u32;
+    shifted_bits & Self::WIN_MASK
   }
 
   const fn pack(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> u32 {
@@ -496,6 +516,11 @@ mod tests {
     );
   }
 
+  fn check_accumulate(s1: Score, s2: Score, expected: Score) {
+    expect_eq!(s1.accumulate(s2), expected, "{s1}.accumulate({s2})");
+    expect_eq!(s2.accumulate(s1), expected, "{s2}.accumulate({s1})");
+  }
+
   #[gtest]
   fn test_score_value_ord() {
     expect_lt!(ScoreValue::OtherPlayerWins, ScoreValue::CurrentPlayerWins);
@@ -641,6 +666,68 @@ mod tests {
       Score::new(true, 5, 20),
       Score::tie(10),
       Score::new(true, 10, 20),
+    );
+  }
+
+  #[gtest]
+  fn test_accumulate() {
+    check_accumulate(Score::NO_INFO, Score::NO_INFO, Score::NO_INFO);
+    check_accumulate(Score::win(3), Score::win(3), Score::win(3));
+    check_accumulate(Score::lose(4), Score::lose(4), Score::lose(4));
+    check_accumulate(Score::tie(5), Score::tie(5), Score::tie(5));
+    check_accumulate(
+      Score::guaranteed_tie(),
+      Score::guaranteed_tie(),
+      Score::guaranteed_tie(),
+    );
+
+    check_accumulate(Score::win(5), Score::win(3), Score::win(3));
+    check_accumulate(
+      Score::optimal_win(5),
+      Score::optimal_win(3),
+      Score::optimal_win(3),
+    );
+    check_accumulate(Score::optimal_win(5), Score::win(3), Score::win(3));
+    check_accumulate(Score::win(5), Score::optimal_win(3), Score::win(3));
+    check_accumulate(
+      Score::new(true, 1, 5),
+      Score::optimal_win(3),
+      Score::new(true, 1, 3),
+    );
+
+    check_accumulate(Score::win(5), Score::tie(3), Score::win(5));
+    check_accumulate(Score::optimal_win(5), Score::tie(3), Score::new(true, 3, 5));
+    check_accumulate(Score::win(5), Score::tie(6), Score::win(5));
+    check_accumulate(Score::optimal_win(5), Score::tie(6), Score::optimal_win(5));
+
+    check_accumulate(Score::win(6), Score::lose(3), Score::win(6));
+    check_accumulate(Score::win(6), Score::lose(8), Score::win(6));
+    check_accumulate(Score::optimal_win(6), Score::lose(3), Score::win(6));
+    check_accumulate(
+      Score::optimal_win(6),
+      Score::optimal_lose(3),
+      Score::new(true, 2, 6),
+    );
+    check_accumulate(
+      Score::optimal_win(6),
+      Score::optimal_lose(8),
+      Score::optimal_win(6),
+    );
+
+    check_accumulate(Score::tie(4), Score::tie(2), Score::tie(2));
+    check_accumulate(Score::tie(4), Score::guaranteed_tie(), Score::tie(4));
+
+    check_accumulate(Score::tie(5), Score::lose(3), Score::NO_INFO);
+    check_accumulate(Score::tie(5), Score::lose(7), Score::NO_INFO);
+    check_accumulate(Score::tie(5), Score::optimal_lose(3), Score::tie(2));
+    check_accumulate(Score::tie(5), Score::optimal_lose(7), Score::tie(5));
+
+    check_accumulate(Score::lose(5), Score::lose(3), Score::lose(5));
+    check_accumulate(Score::optimal_lose(5), Score::lose(3), Score::lose(5));
+    check_accumulate(
+      Score::optimal_lose(5),
+      Score::optimal_lose(3),
+      Score::new(false, 2, 5),
     );
   }
 
