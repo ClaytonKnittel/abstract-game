@@ -23,6 +23,14 @@ impl ScoreValue {
   pub fn is_tied(&self) -> bool {
     matches!(self, ScoreValue::Tie)
   }
+
+  pub fn invert(&self) -> Self {
+    match self {
+      Self::OtherPlayerWins => Self::CurrentPlayerWins,
+      Self::Tie => Self::Tie,
+      Self::CurrentPlayerWins => Self::OtherPlayerWins,
+    }
+  }
 }
 
 impl Display for ScoreValue {
