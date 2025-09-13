@@ -280,8 +280,10 @@ impl Score {
     let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
     let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
 
-    let tie1 = (!(self.data + Self::INC_WIN) & Self::CUR_PLAYER_WINS_MASK) | tie1;
-    let tie2 = (!(other.data + Self::INC_WIN) & Self::CUR_PLAYER_WINS_MASK) | tie2;
+    let invert_tie1 = ((self.data + Self::INC_WIN) as i32 >> (i32::BITS - 1)) as u32;
+    let invert_tie2 = ((other.data + Self::INC_WIN) as i32 >> (i32::BITS - 1)) as u32;
+    let tie1 = tie1 ^ invert_tie1;
+    let tie2 = tie2 ^ invert_tie2;
 
     let invert_mask1 = Self::invert_win_mask(self.data);
     let invert_mask2 = Self::invert_win_mask(other.data);
@@ -289,7 +291,7 @@ impl Score {
     let win1 = (cur_player_wins1 | win1) ^ invert_mask1;
     let win2 = (cur_player_wins2 | win2) ^ invert_mask2;
 
-    let tie = tie1.min(tie2) & Self::TIE_MASK;
+    let tie = tie1.max(tie2) ^ (invert_tie1 | invert_tie2);
     let win = win1.max(win2) ^ (invert_mask1 | invert_mask2);
 
     Score { data: tie | win }
@@ -704,9 +706,18 @@ mod tests {
     check_accumulate(Score::tie(5), Score::optimal_lose(7), Score::tie(5));
 
     check_accumulate(Score::lose(5), Score::lose(3), Score::lose(5));
-    check_accumulate(Score::optimal_lose(5), Score::lose(3), Score::lose(5));
     check_accumulate(
       Score::optimal_lose(5),
+      Score::lose(3),
+      Score::optimal_lose(5),
+    );
+    check_accumulate(
+      Score::optimal_lose(5),
+      Score::optimal_lose(3),
+      Score::optimal_lose(5),
+    );
+    check_accumulate(
+      Score::lose(5),
       Score::optimal_lose(3),
       Score::new(false, 2, 5),
     );
