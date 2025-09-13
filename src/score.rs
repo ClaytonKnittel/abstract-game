@@ -277,9 +277,17 @@ impl Score {
 
   /// Constructs a score for a game state where not all possible next moves were
   /// explored. This sets `turn_count_tie` to 0, since we can't prove that there
-  /// is no forced win out to any depth.
+  /// is no forced win out to any depth, and `turn_count_win` to infinity if the
+  /// current player is not winning, since we don't know if there exists a
+  /// better move that would make this game a tie/win for the current player.
   pub fn break_early(&self) -> Self {
-    Score { data: self.data & !Self::TIE_MASK }
+    let losing_mask = ((!self.data as i32) >> (Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_BITS))
+      as u32
+      & Self::WIN_MASK;
+    let tie_mask = !Self::TIE_MASK;
+    Score {
+      data: (self.data & tie_mask) | losing_mask,
+    }
   }
 
   const fn pack(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> u32 {
@@ -705,8 +713,8 @@ mod tests {
   fn test_break_early() {
     expect_eq!(Score::win(3).break_early(), Score::win(3));
     expect_eq!(Score::optimal_win(3).break_early(), Score::win(3));
-    expect_eq!(Score::lose(3).break_early(), Score::lose(3));
-    expect_eq!(Score::optimal_lose(3).break_early(), Score::lose(3));
+    expect_eq!(Score::lose(3).break_early(), Score::NO_INFO);
+    expect_eq!(Score::optimal_lose(3).break_early(), Score::NO_INFO);
     expect_eq!(Score::tie(5).break_early(), Score::NO_INFO);
     expect_eq!(Score::guaranteed_tie().break_early(), Score::NO_INFO);
     expect_eq!(Score::NO_INFO.break_early(), Score::NO_INFO);
