@@ -3,6 +3,9 @@ use crate::{determined_score::DeterminedScore, Game, Solver};
 /// Complete solvers find the true optimal moves (e.g. highest-valued `Score`),
 /// which differs from "optimal" solvers (e.g. "never loses") in that the
 /// minimum path to victory is required.
+///
+/// You should only implement this trait if you know that your solver is a
+/// complete solver.
 pub trait CompleteSolver: Solver {
   fn best_move_determined(
     &mut self,
