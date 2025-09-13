@@ -57,10 +57,11 @@ impl Score {
   /// A `Score` that contains no information.
   pub const NO_INFO: Score = Score::new(false, 0, 0);
 
-  /// Used to mark a game state as an ancestor of the current tree being
-  /// explored. Will be overwritten with the actual score once its calculation
-  /// is finished.
-  pub const ANCESTOR: Score = Score { data: Self::CUR_PLAYER_WINS_MASK };
+  /// An impossible score. Can be used to mark a game state as an ancestor of
+  /// the current tree being explored.
+  pub const ANCESTOR: Score = Score {
+    data: Self::CUR_PLAYER_WINS_MASK | Self::WIN_MASK,
+  };
 
   const fn new(cur_player_wins: bool, turn_count_tie: u32, turn_count_win: u32) -> Self {
     debug_assert!(turn_count_tie <= Self::MAX_TIE_DEPTH);
