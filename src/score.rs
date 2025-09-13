@@ -209,6 +209,30 @@ impl Score {
     }
   }
 
+  /// Returns a score with information truncated to `depth` moves deep, meaning
+  /// it contains no information that would require a search deeper than
+  /// `depth`.
+  ///
+  /// ```
+  /// use abstract_game::Score;
+  /// assert_eq!(Score::win(3).truncated(3), Score::win(3));
+  /// assert_eq!(Score::win(3).truncated(2), Score::NO_INFO);
+  /// assert_eq!(Score::optimal_win(3).truncated(2), Score::tie(2));
+  /// ```
+  pub fn truncated(&self, depth: u32) -> Self {
+    let (cur, tie, win) = Self::unpack_unshifted(self.data + (1 << Self::WIN_SHIFT));
+    let max_tie_depth = depth << Self::TIE_SHIFT;
+    let max_win_depth = depth << Self::WIN_SHIFT;
+
+    let tie = tie.min(max_tie_depth);
+
+    let win_truncated = (win <= max_win_depth) as u32;
+    let cur = cur * win_truncated;
+    let win = (win_truncated * win).wrapping_sub(1 << Self::WIN_SHIFT) & Self::WIN_MASK;
+
+    Self { data: cur + tie + win }
+  }
+
   const fn cur_player_wins(&self) -> bool {
     (self.data & Self::CUR_PLAYER_WINS_MASK) != 0
   }
@@ -694,6 +718,26 @@ mod tests {
     expect_eq!(Score::guaranteed_tie().score_at_depth(0), ScoreValue::Tie);
 
     expect_eq!(Score::NO_INFO.score_at_depth(0), ScoreValue::Tie);
+  }
+
+  #[gtest]
+  fn test_truncated() {
+    expect_eq!(Score::win(3).truncated(3), Score::win(3));
+    expect_eq!(Score::optimal_win(3).truncated(3), Score::optimal_win(3));
+    expect_eq!(Score::win(3).truncated(2), Score::NO_INFO);
+    expect_eq!(Score::optimal_win(3).truncated(2), Score::tie(2));
+
+    expect_eq!(Score::lose(3).truncated(3), Score::lose(3));
+    expect_eq!(Score::optimal_lose(3).truncated(3), Score::optimal_lose(3));
+    expect_eq!(Score::lose(3).truncated(2), Score::NO_INFO);
+    expect_eq!(Score::optimal_lose(3).truncated(2), Score::tie(2));
+
+    expect_eq!(Score::tie(10).truncated(4), Score::tie(4));
+    expect_eq!(Score::tie(5).truncated(8), Score::tie(5));
+    expect_eq!(Score::guaranteed_tie().truncated(12), Score::tie(12));
+
+    expect_eq!(Score::NO_INFO.truncated(3), Score::NO_INFO);
+    expect_eq!(Score::NO_INFO.truncated(0), Score::NO_INFO);
   }
 
   #[gtest]
