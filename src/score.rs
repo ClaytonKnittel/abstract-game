@@ -25,6 +25,20 @@ impl ScoreValue {
   }
 }
 
+impl Display for ScoreValue {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::OtherPlayerWins => "oth",
+        Self::Tie => "tie",
+        Self::CurrentPlayerWins => "cur",
+      }
+    )
+  }
+}
+
 #[derive(Clone, Copy)]
 pub struct Score {
   /// Layout:
