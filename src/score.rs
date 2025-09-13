@@ -4,11 +4,11 @@ use std::{
   hint::unreachable_unchecked,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ScoreValue {
-  CurrentPlayerWins,
   OtherPlayerWins,
   Tie,
+  CurrentPlayerWins,
 }
 
 impl ScoreValue {
@@ -438,6 +438,13 @@ mod tests {
       opposite_expected,
       "Merging {opposite_s2} and {opposite_s1}"
     );
+  }
+
+  #[gtest]
+  fn test_score_value_ord() {
+    expect_lt!(ScoreValue::OtherPlayerWins, ScoreValue::CurrentPlayerWins);
+    expect_lt!(ScoreValue::OtherPlayerWins, ScoreValue::Tie);
+    expect_lt!(ScoreValue::Tie, ScoreValue::CurrentPlayerWins);
   }
 
   #[gtest]
