@@ -65,16 +65,18 @@ impl Score {
   const MAX_TIE_DEPTH: u32 = (1 << Self::TIE_BITS) - 1;
   const TIE_MASK: u32 = Self::MAX_TIE_DEPTH << Self::TIE_SHIFT;
 
+  const UNUSED_BITS: u32 = 9;
+  const UNUSED_SHIFT: u32 = Self::TIE_SHIFT + Self::TIE_BITS;
+
   const WIN_BITS: u32 = 11;
-  const WIN_SHIFT: u32 = Self::TIE_SHIFT + Self::TIE_BITS;
+  const WIN_SHIFT: u32 = Self::UNUSED_SHIFT + Self::UNUSED_BITS;
   const MAX_WIN_DEPTH: u32 = (1 << Self::WIN_BITS) - 1;
   const WIN_MASK: u32 = Self::MAX_WIN_DEPTH << Self::WIN_SHIFT;
 
-  const UNUSED_BITS: u32 = 9;
-  const UNUSED_SHIFT: u32 = Self::WIN_SHIFT + Self::WIN_BITS;
-
-  const CUR_PLAYER_WINS_SHIFT: u32 = Self::UNUSED_SHIFT + Self::UNUSED_BITS;
+  const CUR_PLAYER_WINS_SHIFT: u32 = Self::WIN_SHIFT + Self::WIN_BITS;
   const CUR_PLAYER_WINS_MASK: u32 = 1 << Self::CUR_PLAYER_WINS_SHIFT;
+
+  const INC_WIN: u32 = 1 << Self::WIN_SHIFT;
 
   /// A `Score` that contains no information.
   pub const NO_INFO: Score = Score::new(false, 0, 0);
@@ -189,7 +191,7 @@ impl Score {
 
   /// The maximum depth that this score is determined to.
   pub fn determined_depth(&self) -> u32 {
-    let (_, tie, win) = Self::unpack(self.data + (1 << Self::WIN_SHIFT));
+    let (_, tie, win) = Self::unpack(self.data + Self::INC_WIN);
     tie.max(win)
   }
 
@@ -209,30 +211,6 @@ impl Score {
     }
   }
 
-  /// Returns a score with information truncated to `depth` moves deep, meaning
-  /// it contains no information that would require a search deeper than
-  /// `depth`.
-  ///
-  /// ```
-  /// use abstract_game::Score;
-  /// assert_eq!(Score::win(3).truncated(3), Score::win(3));
-  /// assert_eq!(Score::win(3).truncated(2), Score::NO_INFO);
-  /// assert_eq!(Score::optimal_win(3).truncated(2), Score::tie(2));
-  /// ```
-  pub fn truncated(&self, depth: u32) -> Self {
-    let (cur, tie, win) = Self::unpack_unshifted(self.data + (1 << Self::WIN_SHIFT));
-    let max_tie_depth = depth << Self::TIE_SHIFT;
-    let max_win_depth = depth << Self::WIN_SHIFT;
-
-    let tie = tie.min(max_tie_depth);
-
-    let win_truncated = (win <= max_win_depth) as u32;
-    let cur = cur * win_truncated;
-    let win = (win_truncated * win).wrapping_sub(1 << Self::WIN_SHIFT) & Self::WIN_MASK;
-
-    Self { data: cur + tie + win }
-  }
-
   const fn cur_player_wins(&self) -> bool {
     (self.data & Self::CUR_PLAYER_WINS_MASK) != 0
   }
@@ -242,7 +220,7 @@ impl Score {
   }
 
   const fn turn_count_win(&self) -> u32 {
-    ((self.data + (1 << Self::WIN_SHIFT)) & Self::WIN_MASK) >> Self::WIN_SHIFT
+    ((self.data + Self::INC_WIN) & Self::WIN_MASK) >> Self::WIN_SHIFT
   }
 
   /// Transforms a score at a given state of the game to how that score would
@@ -253,7 +231,7 @@ impl Score {
   /// steps.
   pub fn backstep(&self) -> Self {
     debug_assert!(self.is_tie() || self.turn_count_win() < Self::MAX_WIN_DEPTH);
-    let to_add = (!self.is_tie() as u32 * ((1 << Self::WIN_SHIFT) | Self::CUR_PLAYER_WINS_MASK))
+    let to_add = (!self.is_tie() as u32 * (Self::INC_WIN | Self::CUR_PLAYER_WINS_MASK))
       + (!self.is_guaranteed_tie() as u32 * (1 << Self::TIE_SHIFT));
     Score { data: self.data.wrapping_add(to_add) }
   }
@@ -273,7 +251,7 @@ impl Score {
     Self {
       data: self.data.wrapping_sub(
         (swap_player_turn as u32 * Self::CUR_PLAYER_WINS_MASK)
-          + (deduct_winning_turns as u32 * (1 << Self::WIN_SHIFT))
+          + (deduct_winning_turns as u32 * Self::INC_WIN)
           + (deduct_tied_turns as u32 * (1 << Self::TIE_SHIFT)),
       ),
     }
@@ -299,17 +277,11 @@ impl Score {
   /// position. Can be used to determine the score of a position by
   /// accumulating the backstepped scores of all children of that position.
   pub fn accumulate(&self, other: Self) -> Self {
-    let win_before_cur_shift = Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_BITS;
-    let move_win_next_to_cur_shift = win_before_cur_shift - Self::WIN_SHIFT;
-
     let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
     let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
 
-    let set_cur_for_tie = |win: u32| -> u32 {
-      ((win << move_win_next_to_cur_shift) + (1 << win_before_cur_shift)) & 0x8000_0000
-    };
-    let tie1 = ((cur_player_wins1 | tie1) + set_cur_for_tie(win1)) ^ 0x8000_0000;
-    let tie2 = ((cur_player_wins2 | tie2) + set_cur_for_tie(win2)) ^ 0x8000_0000;
+    let tie1 = (!(self.data + Self::INC_WIN) & Self::CUR_PLAYER_WINS_MASK) | tie1;
+    let tie2 = (!(other.data + Self::INC_WIN) & Self::CUR_PLAYER_WINS_MASK) | tie2;
 
     let invert_mask1 = Self::invert_win_mask(self.data);
     let invert_mask2 = Self::invert_win_mask(other.data);
@@ -317,10 +289,10 @@ impl Score {
     let win1 = (cur_player_wins1 | win1) ^ invert_mask1;
     let win2 = (cur_player_wins2 | win2) ^ invert_mask2;
 
-    let tie = tie1.min(tie2) & 0x7fff_ffff;
+    let tie = tie1.min(tie2) & Self::TIE_MASK;
     let win = win1.max(win2) ^ (invert_mask1 | invert_mask2);
 
-    Score { data: tie + win }
+    Score { data: tie | win }
   }
 
   /// True if this score can be used in place of a search that goes
@@ -814,26 +786,6 @@ mod tests {
     expect_eq!(Score::guaranteed_tie().score_at_depth(0), ScoreValue::Tie);
 
     expect_eq!(Score::NO_INFO.score_at_depth(0), ScoreValue::Tie);
-  }
-
-  #[gtest]
-  fn test_truncated() {
-    expect_eq!(Score::win(3).truncated(3), Score::win(3));
-    expect_eq!(Score::optimal_win(3).truncated(3), Score::optimal_win(3));
-    expect_eq!(Score::win(3).truncated(2), Score::NO_INFO);
-    expect_eq!(Score::optimal_win(3).truncated(2), Score::tie(2));
-
-    expect_eq!(Score::lose(3).truncated(3), Score::lose(3));
-    expect_eq!(Score::optimal_lose(3).truncated(3), Score::optimal_lose(3));
-    expect_eq!(Score::lose(3).truncated(2), Score::NO_INFO);
-    expect_eq!(Score::optimal_lose(3).truncated(2), Score::tie(2));
-
-    expect_eq!(Score::tie(10).truncated(4), Score::tie(4));
-    expect_eq!(Score::tie(5).truncated(8), Score::tie(5));
-    expect_eq!(Score::guaranteed_tie().truncated(12), Score::tie(12));
-
-    expect_eq!(Score::NO_INFO.truncated(3), Score::NO_INFO);
-    expect_eq!(Score::NO_INFO.truncated(0), Score::NO_INFO);
   }
 
   #[gtest]
