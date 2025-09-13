@@ -148,6 +148,16 @@ impl Score {
     Score::tie(Self::MAX_TIE_DEPTH)
   }
 
+  pub fn score(&self) -> ScoreValue {
+    if self.is_winning() {
+      ScoreValue::CurrentPlayerWins
+    } else if self.is_tie() {
+      ScoreValue::Tie
+    } else {
+      ScoreValue::OtherPlayerWins
+    }
+  }
+
   /// Returns true if this score is determined at every depth, meaning we know
   /// exactly the minimum moves to force a win, or it's a guaranteed tie.
   pub fn fully_determined(&self) -> bool {
@@ -586,6 +596,22 @@ mod tests {
       Score::tie(10),
       Score::new(true, 10, 20),
     );
+  }
+
+  #[gtest]
+  fn test_score() {
+    expect_eq!(Score::win(4).score(), ScoreValue::CurrentPlayerWins);
+    expect_eq!(Score::optimal_win(7).score(), ScoreValue::CurrentPlayerWins);
+    expect_eq!(Score::win(1).score(), ScoreValue::CurrentPlayerWins);
+
+    expect_eq!(Score::lose(4).score(), ScoreValue::OtherPlayerWins);
+    expect_eq!(Score::optimal_lose(7).score(), ScoreValue::OtherPlayerWins);
+    expect_eq!(Score::lose(1).score(), ScoreValue::OtherPlayerWins);
+
+    expect_eq!(Score::tie(4).score(), ScoreValue::Tie);
+    expect_eq!(Score::guaranteed_tie().score(), ScoreValue::Tie);
+    expect_eq!(Score::tie(1).score(), ScoreValue::Tie);
+    expect_eq!(Score::NO_INFO.score(), ScoreValue::Tie);
   }
 
   #[gtest]
