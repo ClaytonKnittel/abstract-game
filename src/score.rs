@@ -299,8 +299,17 @@ impl Score {
   /// position. Can be used to determine the score of a position by
   /// accumulating the backstepped scores of all children of that position.
   pub fn accumulate(&self, other: Self) -> Self {
+    let win_before_cur_shift = Self::CUR_PLAYER_WINS_SHIFT - Self::WIN_BITS;
+    let move_win_next_to_cur_shift = win_before_cur_shift - Self::WIN_SHIFT;
+
     let (cur_player_wins1, tie1, win1) = Self::unpack_unshifted(self.data);
     let (cur_player_wins2, tie2, win2) = Self::unpack_unshifted(other.data);
+
+    let set_cur_for_tie = |win: u32| -> u32 {
+      ((win << move_win_next_to_cur_shift) + (1 << win_before_cur_shift)) & 0x8000_0000
+    };
+    let tie1 = ((cur_player_wins1 | tie1) + set_cur_for_tie(win1)) ^ 0x8000_0000;
+    let tie2 = ((cur_player_wins2 | tie2) + set_cur_for_tie(win2)) ^ 0x8000_0000;
 
     let invert_mask1 = Self::invert_win_mask(self.data);
     let invert_mask2 = Self::invert_win_mask(other.data);
@@ -308,7 +317,7 @@ impl Score {
     let win1 = (cur_player_wins1 | win1) ^ invert_mask1;
     let win2 = (cur_player_wins2 | win2) ^ invert_mask2;
 
-    let tie = tie1.min(tie2);
+    let tie = tie1.min(tie2) & 0x7fff_ffff;
     let win = win1.max(win2) ^ (invert_mask1 | invert_mask2);
 
     Score { data: tie + win }
@@ -702,11 +711,11 @@ mod tests {
 
     check_accumulate(Score::win(6), Score::lose(3), Score::win(6));
     check_accumulate(Score::win(6), Score::lose(8), Score::win(6));
-    check_accumulate(Score::optimal_win(6), Score::lose(3), Score::win(6));
+    check_accumulate(Score::optimal_win(6), Score::lose(3), Score::optimal_win(6));
     check_accumulate(
       Score::optimal_win(6),
       Score::optimal_lose(3),
-      Score::new(true, 2, 6),
+      Score::optimal_win(6),
     );
     check_accumulate(
       Score::optimal_win(6),
@@ -717,9 +726,9 @@ mod tests {
     check_accumulate(Score::tie(4), Score::tie(2), Score::tie(2));
     check_accumulate(Score::tie(4), Score::guaranteed_tie(), Score::tie(4));
 
-    check_accumulate(Score::tie(5), Score::lose(3), Score::NO_INFO);
-    check_accumulate(Score::tie(5), Score::lose(7), Score::NO_INFO);
-    check_accumulate(Score::tie(5), Score::optimal_lose(3), Score::tie(2));
+    check_accumulate(Score::tie(5), Score::lose(3), Score::tie(5));
+    check_accumulate(Score::tie(5), Score::lose(7), Score::tie(5));
+    check_accumulate(Score::tie(5), Score::optimal_lose(3), Score::tie(5));
     check_accumulate(Score::tie(5), Score::optimal_lose(7), Score::tie(5));
 
     check_accumulate(Score::lose(5), Score::lose(3), Score::lose(5));
