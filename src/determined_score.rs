@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::{Score, ScoreValue};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct DeterminedScore {
   value: ScoreValue,
   moves_to_win: u32,
@@ -36,6 +36,12 @@ impl DeterminedScore {
       let moves_to_win = if value.is_tied() { 0 } else { depth };
       Self { value, moves_to_win }
     })
+  }
+}
+
+impl Debug for DeterminedScore {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{self}")
   }
 }
 
