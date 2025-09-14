@@ -12,7 +12,11 @@ impl HumanPlayer for NimPlayer {
   fn prompt_move_text(&self, game: &Nim) -> String {
     format!(
       "How many sticks would you like to take? {}",
-      if game.sticks() == 1 { "1" } else { "1 or 2" }
+      if game.sticks() == 1 {
+        "1 is the only option"
+      } else {
+        "1 or 2"
+      }
     )
   }
 

@@ -83,7 +83,14 @@ where
   pub fn play(mut self) -> GameInterfaceResult {
     while !self.game.finished().is_finished() {
       self.println(&format!("{}", self.game))?;
-      self.println(&format!("{} to move:", self.current_player_name()))?;
+      if let Some(flavor_text) = match self.game.current_player() {
+        GamePlayer::Player1 => self.player1.prompt_move_text(&self.game),
+        GamePlayer::Player2 => self.player2.prompt_move_text(&self.game),
+      } {
+        self.println(&flavor_text)?;
+      } else {
+        self.println(&format!("{} to move:", self.current_player_name()))?;
+      }
 
       let m = self.next_move();
       self.game.make_move(m?);

@@ -24,6 +24,10 @@ impl<P: HumanPlayer> Player for HumanTermPlayer<P> {
     self.name.clone()
   }
 
+  fn prompt_move_text(&self, game: &Self::Game) -> Option<String> {
+    Some(self.player.prompt_move_text(game))
+  }
+
   fn make_move(&mut self, game: &Self::Game) -> GameInterfaceResult<<P::Game as Game>::Move> {
     let mut buffer = String::new();
     stdin()

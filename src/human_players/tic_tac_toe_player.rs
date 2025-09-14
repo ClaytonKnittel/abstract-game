@@ -12,7 +12,7 @@ impl HumanPlayer for TicTacToePlayer {
 
   fn prompt_move_text(&self, game: &TicTacToe) -> String {
     format!(
-      "Where would you like to place the next {}?",
+      "Player {} turn (enter \"X,Y\" coordinates)?",
       match game.current_player() {
         GamePlayer::Player1 => 'X',
         GamePlayer::Player2 => 'O',
