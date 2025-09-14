@@ -5,6 +5,7 @@ pub enum GameInterfaceError {
   Quit,
   MalformedMove(String),
   IoError(String),
+  InternalError(String),
 }
 
 impl Error for GameInterfaceError {}
@@ -15,6 +16,7 @@ impl Display for GameInterfaceError {
       Self::Quit => write!(f, "The user quit"),
       Self::MalformedMove(error) => write!(f, "Malformed move: {error}"),
       Self::IoError(error) => write!(f, "IO error: {error}"),
+      Self::InternalError(error) => write!(f, "Internal error: {error}"),
     }
   }
 }
