@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::{Game, GameMoveIterator, GamePlayer, GameResult};
 
@@ -69,6 +69,11 @@ impl TicTacToe {
     }
   }
 
+  pub fn is_empty(&self, pos: (u32, u32)) -> bool {
+    let m = TTTMove::new(pos);
+    (self.board & m.0) == 0
+  }
+
   fn turn_mask(&self) -> u32 {
     if self.current_player.is_p1() {
       0x0000_ffff
@@ -124,6 +129,12 @@ impl Game for TicTacToe {
 }
 
 impl Debug for TicTacToe {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{self}")
+  }
+}
+
+impl Display for TicTacToe {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let tile_at = |coord: (u32, u32)| {
       let m = TTTMove::new(coord);

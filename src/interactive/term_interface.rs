@@ -88,10 +88,10 @@ where
       let m = self.next_move();
       self.game.make_move(m?);
 
-      if !self.game.finished().is_finished() {
-        self.clear()?;
-      }
+      self.clear()?;
     }
+
+    self.println(&format!("{}", self.game))?;
 
     match self.game.finished() {
       GameResult::Win(player) => {
