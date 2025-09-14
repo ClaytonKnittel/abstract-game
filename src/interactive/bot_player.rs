@@ -24,8 +24,12 @@ impl<S: Solver> Player for BotPlayer<S> {
   }
 
   fn make_move(&mut self, game: &S::Game) -> GameInterfaceResult<<S::Game as Game>::Move> {
-    self.solver.best_move(game, self.depth).1.ok_or_else(|| {
+    let (score, m) = self.solver.best_move(game, self.depth);
+    let m = m.ok_or_else(|| {
       GameInterfaceError::InternalError(format!("No move found for game:\n{game:?}"))
-    })
+    })?;
+
+    eprintln!("Score {score} for game\n{game:?}");
+    Ok(m)
   }
 }
