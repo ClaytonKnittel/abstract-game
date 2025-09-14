@@ -34,6 +34,12 @@ impl DeterminedScore {
     }
   }
 
+  /// Returns true if this score is a tie and is discovered to at least the
+  /// given depth.
+  pub fn is_tied_to(&self, depth: u32) -> bool {
+    self.value == ScoreValue::Tie && (self.moves_to_win >= depth || self.moves_to_win == 0)
+  }
+
   pub fn from_score(score: Score) -> Option<Self> {
     if score == Score::NO_INFO {
       None
