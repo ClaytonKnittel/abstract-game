@@ -9,7 +9,14 @@ pub struct DeterminedScore {
 }
 
 impl DeterminedScore {
-  pub const fn tie() -> Self {
+  pub const fn tie(depth: u32) -> Self {
+    Self {
+      value: ScoreValue::Tie,
+      moves_to_win: depth,
+    }
+  }
+
+  pub const fn guaranteed_tie() -> Self {
     Self { value: ScoreValue::Tie, moves_to_win: 0 }
   }
 
@@ -28,14 +35,21 @@ impl DeterminedScore {
   }
 
   pub fn from_score(score: Score) -> Option<Self> {
-    score.fully_determined().then(|| {
-      let depth = score.determined_depth();
-      let value = score.score_at_depth(depth);
-      debug_assert!(!value.is_tied() || score == Score::guaranteed_tie());
+    if score == Score::NO_INFO {
+      None
+    } else if score.is_guaranteed_tie() {
+      Some(Self::guaranteed_tie())
+    } else if score.is_tie() {
+      Some(Self::tie(score.determined_depth()))
+    } else {
+      score.fully_determined().then(|| {
+        let depth = score.determined_depth();
+        let value = score.score_at_depth(depth);
+        debug_assert!(!value.is_tied());
 
-      let moves_to_win = if value.is_tied() { 0 } else { depth };
-      Self { value, moves_to_win }
-    })
+        Self { value, moves_to_win: depth }
+      })
+    }
   }
 }
 
@@ -65,12 +79,14 @@ mod tests {
   fn test_from_score() {
     expect_that!(
       DeterminedScore::from_score(Score::guaranteed_tie()),
-      some(eq(DeterminedScore::tie()))
+      some(eq(DeterminedScore::guaranteed_tie()))
+    );
+    expect_that!(
+      DeterminedScore::from_score(Score::tie(4)),
+      some(eq(DeterminedScore::tie(4)))
     );
 
     expect_that!(DeterminedScore::from_score(Score::NO_INFO), none());
-    expect_that!(DeterminedScore::from_score(Score::tie(1)), none());
-    expect_that!(DeterminedScore::from_score(Score::tie(3)), none());
 
     expect_that!(
       DeterminedScore::from_score(Score::optimal_win(4)),
