@@ -66,7 +66,7 @@ impl GameResult {
 }
 
 pub trait Game: Clone + Debug + Sized {
-  type Move: Copy + Debug;
+  type Move: Copy + Debug + Eq;
   type MoveGenerator: GameMoveIterator<Game = Self>;
 
   fn move_generator(&self) -> Self::MoveGenerator;

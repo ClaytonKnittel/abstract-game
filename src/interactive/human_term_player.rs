@@ -1,5 +1,7 @@
 use std::io::stdin;
 
+use itertools::Itertools;
+
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
   interactive::{human_player::HumanPlayer, player::Player},
@@ -38,6 +40,14 @@ impl<P: HumanPlayer> Player for HumanTermPlayer<P> {
       return Err(GameInterfaceError::Quit);
     }
 
-    self.player.parse_move(move_text, game)
+    let m = self.player.parse_move(move_text, game)?;
+
+    if !game.each_move().contains(&m) {
+      return Err(GameInterfaceError::MalformedMove(format!(
+        "{m:?} is not a legal move!"
+      )));
+    }
+
+    Ok(m)
   }
 }

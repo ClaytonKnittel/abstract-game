@@ -1,4 +1,7 @@
-use std::{fmt::Debug, hint::unreachable_unchecked};
+use std::{
+  fmt::{Debug, Display},
+  hint::unreachable_unchecked,
+};
 
 use crate::{Game, GameMoveIterator, GamePlayer, GameResult};
 
@@ -93,6 +96,14 @@ impl ConnectN {
       height,
       in_a_row,
     }
+  }
+
+  pub fn width(&self) -> u32 {
+    self.width
+  }
+
+  pub fn height(&self) -> u32 {
+    self.height
   }
 
   fn pos_to_idx(&self, pos: (u32, u32)) -> (u32, usize) {
@@ -211,6 +222,12 @@ impl Game for ConnectN {
 
 impl Debug for ConnectN {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{self}")
+  }
+}
+
+impl Display for ConnectN {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     for y in (0..self.height).rev() {
       for x in 0..self.width {
         write!(
@@ -222,6 +239,9 @@ impl Debug for ConnectN {
             TileState::P2 => "O",
           }
         )?;
+        if x < self.width - 1 {
+          write!(f, " ")?;
+        }
       }
       writeln!(f)?;
     }
