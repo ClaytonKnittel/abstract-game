@@ -13,8 +13,8 @@ pub trait CompleteSolver: Solver {
     depth: u32,
   ) -> (DeterminedScore, Option<<Self::Game as Game>::Move>) {
     let (score, m) = Solver::best_move(self, game, depth);
-    let score =
-      DeterminedScore::from_score(score).expect("Expected a determined score, got {score}");
+    let score = DeterminedScore::from_score(score)
+      .expect(&format!("Expected a determined score, got {score}"));
     (score, m)
   }
 }
