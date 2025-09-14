@@ -1,0 +1,17 @@
+use crate::{error::GameInterfaceResult, Game};
+
+pub trait HumanPlayer {
+  type Game: Game;
+
+  /// The text to be printed to the terminal when it's a player's turn to make
+  /// a move.
+  fn prompt_move_text(&self, game: &Self::Game) -> String;
+
+  /// Parses a player's move, returning the parsed move, or an error if parsing
+  /// failed.
+  fn parse_move(
+    &self,
+    move_text: &str,
+    game: &Self::Game,
+  ) -> GameInterfaceResult<<Self::Game as Game>::Move>;
+}

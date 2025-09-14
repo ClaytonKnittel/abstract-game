@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{Game, GameMoveIterator, GamePlayer, GameResult};
 
 pub struct NimMoveIter {
@@ -8,7 +10,7 @@ impl GameMoveIterator for NimMoveIter {
   type Game = Nim;
 
   fn next(&mut self, nim: &Nim) -> Option<u32> {
-    if self.sticks >= 2.min(nim.sticks) {
+    if self.sticks >= Nim::MAX_STICKS_PER_TURN.min(nim.sticks) {
       None
     } else {
       self.sticks += 1;
@@ -24,8 +26,14 @@ pub struct Nim {
 }
 
 impl Nim {
+  pub const MAX_STICKS_PER_TURN: u32 = 2;
+
   pub fn new(sticks: u32) -> Self {
     Self { sticks, player1: true }
+  }
+
+  pub fn sticks(&self) -> u32 {
+    self.sticks
   }
 }
 
@@ -61,5 +69,11 @@ impl Game for Nim {
     } else {
       GameResult::NotFinished
     }
+  }
+}
+
+impl Display for Nim {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Sticks left: {}", self.sticks)
   }
 }

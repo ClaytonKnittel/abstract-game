@@ -1,0 +1,39 @@
+use std::io::stdin;
+
+use crate::{
+  error::{GameInterfaceError, GameInterfaceResult},
+  interactive::{human_player::HumanPlayer, player::Player},
+  Game,
+};
+
+pub struct HumanTermPlayer<P> {
+  name: String,
+  player: P,
+}
+
+impl<P> HumanTermPlayer<P> {
+  pub fn new(name: String, player: P) -> Self {
+    Self { name, player }
+  }
+}
+
+impl<P: HumanPlayer> Player for HumanTermPlayer<P> {
+  type Game = P::Game;
+
+  fn display_name(&self) -> String {
+    self.name.clone()
+  }
+
+  fn make_move(&mut self, game: &Self::Game) -> GameInterfaceResult<<P::Game as Game>::Move> {
+    let mut buffer = String::new();
+    stdin()
+      .read_line(&mut buffer)
+      .map_err(|err| GameInterfaceError::IoError(err.to_string()))?;
+    let move_text = buffer.trim();
+    if move_text == "q" {
+      return Err(GameInterfaceError::Quit);
+    }
+
+    self.player.parse_move(move_text, game)
+  }
+}
