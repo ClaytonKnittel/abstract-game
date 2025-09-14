@@ -64,7 +64,13 @@ impl Display for DeterminedScore {
     match self.value {
       ScoreValue::CurrentPlayerWins => write!(f, "[cur:{}]", self.moves_to_win),
       ScoreValue::OtherPlayerWins => write!(f, "[oth:{}]", self.moves_to_win),
-      ScoreValue::Tie => write!(f, "[tie]"),
+      ScoreValue::Tie => {
+        if self.moves_to_win == 0 {
+          write!(f, "[tie]")
+        } else {
+          write!(f, "[tie:{}]", self.moves_to_win)
+        }
+      }
     }
   }
 }
