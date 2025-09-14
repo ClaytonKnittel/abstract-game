@@ -92,8 +92,8 @@ where
         self.println(&format!("{} to move:", self.current_player_name()))?;
       }
 
-      let m = self.next_move();
-      self.game.make_move(m?);
+      let m = self.next_move()?;
+      self.game.make_move(m);
 
       self.clear()?;
     }
