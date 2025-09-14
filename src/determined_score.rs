@@ -37,12 +37,20 @@ impl DeterminedScore {
   /// Returns true if this score is a tie and is discovered to at least the
   /// given depth.
   pub fn truncated(&self, depth: u32) -> Self {
-    if self.value == ScoreValue::Tie && self.moves_to_win == 0 {
-      Self::tie(depth)
-    } else {
-      Self {
-        value: self.value,
-        moves_to_win: self.moves_to_win.min(depth),
+    match self.value {
+      ScoreValue::Tie => {
+        if self.moves_to_win == 0 {
+          Self::tie(depth)
+        } else {
+          Self::tie(self.moves_to_win.min(depth))
+        }
+      }
+      ScoreValue::CurrentPlayerWins | ScoreValue::OtherPlayerWins => {
+        if self.moves_to_win <= depth {
+          *self
+        } else {
+          Self::tie(depth)
+        }
       }
     }
   }
@@ -93,6 +101,48 @@ mod tests {
   use googletest::{gtest, prelude::*};
 
   use crate::{determined_score::DeterminedScore, Score};
+
+  #[gtest]
+  fn test_truncated() {
+    expect_eq!(
+      DeterminedScore::guaranteed_tie().truncated(10),
+      DeterminedScore::tie(10)
+    );
+    expect_eq!(
+      DeterminedScore::tie(20).truncated(10),
+      DeterminedScore::tie(10)
+    );
+    expect_eq!(
+      DeterminedScore::tie(5).truncated(10),
+      DeterminedScore::tie(5)
+    );
+
+    expect_eq!(
+      DeterminedScore::win(20).truncated(10),
+      DeterminedScore::tie(10)
+    );
+    expect_eq!(
+      DeterminedScore::win(10).truncated(10),
+      DeterminedScore::win(10)
+    );
+    expect_eq!(
+      DeterminedScore::win(5).truncated(10),
+      DeterminedScore::win(5)
+    );
+
+    expect_eq!(
+      DeterminedScore::lose(20).truncated(10),
+      DeterminedScore::tie(10)
+    );
+    expect_eq!(
+      DeterminedScore::lose(10).truncated(10),
+      DeterminedScore::lose(10)
+    );
+    expect_eq!(
+      DeterminedScore::lose(5).truncated(10),
+      DeterminedScore::lose(5)
+    );
+  }
 
   #[gtest]
   fn test_from_score() {
