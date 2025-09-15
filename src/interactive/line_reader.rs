@@ -7,6 +7,9 @@ pub struct GameMoveLineReader<I> {
 }
 
 impl<I: BufRead> GameMoveLineReader<I> {
+  /// Reads the next line from the input source, returning an error if the user
+  /// quit or the underlying `BufReader` returned an error when trying to read
+  /// the next line.
   pub fn next_line(&mut self) -> GameInterfaceResult<String> {
     let mut buffer = String::new();
     self
