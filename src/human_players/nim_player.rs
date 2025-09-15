@@ -2,7 +2,9 @@ use std::io::BufRead;
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
+  interactive::{
+    human_player::HumanPlayer, line_reader::GameMoveLineReader, player::MakeMoveControl,
+  },
   test_games::Nim,
 };
 
@@ -26,7 +28,7 @@ impl HumanPlayer for NimPlayer {
     &self,
     mut move_reader: GameMoveLineReader<I>,
     game: &Nim,
-  ) -> GameInterfaceResult<u32> {
+  ) -> GameInterfaceResult<MakeMoveControl<u32>> {
     let move_text = move_reader.next_line()?;
     let sticks = move_text
       .parse()
@@ -44,6 +46,6 @@ impl HumanPlayer for NimPlayer {
       )));
     }
 
-    Ok(sticks)
+    Ok(MakeMoveControl::Done(sticks))
   }
 }

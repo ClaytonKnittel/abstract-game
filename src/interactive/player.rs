@@ -1,5 +1,16 @@
 use crate::{error::GameInterfaceResult, Game};
 
+/// Value returned from `make_move` to tell the game engine whether to accept a
+/// move from a player, or to keep prompting the player. `Continue` may be used
+/// if a move requires multiple selections from the user.
+pub enum MakeMoveControl<M> {
+  /// The move that the player chose.
+  Done(M),
+  /// Continue prompting for a move. The internal state of the player should
+  /// have updated to ask for different information.
+  Continue,
+}
+
 pub trait Player {
   type Game: Game;
 
@@ -11,5 +22,8 @@ pub trait Player {
     None
   }
 
-  fn make_move(&mut self, game: &Self::Game) -> GameInterfaceResult<<Self::Game as Game>::Move>;
+  fn make_move(
+    &mut self,
+    game: &Self::Game,
+  ) -> GameInterfaceResult<MakeMoveControl<<Self::Game as Game>::Move>>;
 }

@@ -4,7 +4,9 @@ use itertools::Itertools;
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
+  interactive::{
+    human_player::HumanPlayer, line_reader::GameMoveLineReader, player::MakeMoveControl,
+  },
   test_games::{ConnectMove, ConnectN},
   Game, GamePlayer,
 };
@@ -29,11 +31,11 @@ impl HumanPlayer for ConnectNPlayer {
     &self,
     mut move_reader: GameMoveLineReader<I>,
     _game: &ConnectN,
-  ) -> GameInterfaceResult<ConnectMove> {
+  ) -> GameInterfaceResult<MakeMoveControl<ConnectMove>> {
     let move_text = move_reader.next_line()?;
     let col = move_text
       .parse()
       .map_err(|_| GameInterfaceError::MalformedMove(format!("{move_text} is not a number.")))?;
-    Ok(ConnectMove { col })
+    Ok(MakeMoveControl::Done(ConnectMove { col }))
   }
 }
