@@ -54,7 +54,7 @@ where
 
       match move_result {
         Ok(m) => break Ok(m),
-        Err(GameInterfaceError::Quit) | Err(GameInterfaceError::IoError(_)) => break move_result,
+        Err(GameInterfaceError::Quit | GameInterfaceError::IoError(_)) => break move_result,
         Err(err) => {
           self.println(&format!("{err}"))?;
         }
