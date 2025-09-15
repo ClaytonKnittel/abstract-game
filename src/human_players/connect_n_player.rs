@@ -1,8 +1,10 @@
+use std::io::BufRead;
+
 use itertools::Itertools;
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::human_player::HumanPlayer,
+  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
   test_games::{ConnectMove, ConnectN},
   Game, GamePlayer,
 };
@@ -23,7 +25,12 @@ impl HumanPlayer for ConnectNPlayer {
     )
   }
 
-  fn parse_move(&self, move_text: &str, _game: &ConnectN) -> GameInterfaceResult<ConnectMove> {
+  fn parse_move<I: BufRead>(
+    &self,
+    mut move_reader: GameMoveLineReader<I>,
+    _game: &ConnectN,
+  ) -> GameInterfaceResult<ConnectMove> {
+    let move_text = move_reader.next_line()?;
     let col = move_text
       .parse()
       .map_err(|_| GameInterfaceError::MalformedMove(format!("{move_text} is not a number.")))?;
