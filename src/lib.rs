@@ -1,6 +1,6 @@
 pub mod complete_solver;
 pub mod determined_score;
-mod error;
+pub mod error;
 mod game;
 pub mod human_players;
 pub mod interactive;
