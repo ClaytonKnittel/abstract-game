@@ -1,6 +1,8 @@
+use std::io::BufRead;
+
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::human_player::HumanPlayer,
+  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
   test_games::{TTTMove, TicTacToe},
   Game, GamePlayer,
 };
@@ -20,7 +22,12 @@ impl HumanPlayer for TicTacToePlayer {
     )
   }
 
-  fn parse_move(&self, move_text: &str, game: &TicTacToe) -> GameInterfaceResult<TTTMove> {
+  fn parse_move<I: BufRead>(
+    &self,
+    mut move_reader: GameMoveLineReader<I>,
+    game: &TicTacToe,
+  ) -> GameInterfaceResult<TTTMove> {
+    let move_text = move_reader.next_line()?;
     let make_malformed_move_err = || {
       GameInterfaceError::MalformedMove(format!(
         "\"{move_text}\" is not a valid coordinate pair \"X,Y\""

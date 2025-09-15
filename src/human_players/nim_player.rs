@@ -1,6 +1,8 @@
+use std::io::BufRead;
+
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::human_player::HumanPlayer,
+  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
   test_games::Nim,
 };
 
@@ -20,7 +22,12 @@ impl HumanPlayer for NimPlayer {
     )
   }
 
-  fn parse_move(&self, move_text: &str, game: &Nim) -> GameInterfaceResult<u32> {
+  fn parse_move<I: BufRead>(
+    &self,
+    mut move_reader: GameMoveLineReader<I>,
+    game: &Nim,
+  ) -> GameInterfaceResult<u32> {
+    let move_text = move_reader.next_line()?;
     let sticks = move_text
       .parse()
       .map_err(|_| GameInterfaceError::MalformedMove(format!("{move_text} is not a number")))?;

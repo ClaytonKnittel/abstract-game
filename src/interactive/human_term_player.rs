@@ -1,10 +1,10 @@
-use std::io::stdin;
+use std::io::{stdin, BufReader};
 
 use itertools::Itertools;
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::{human_player::HumanPlayer, player::Player},
+  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader, player::Player},
   Game,
 };
 
@@ -31,16 +31,9 @@ impl<P: HumanPlayer> Player for HumanTermPlayer<P> {
   }
 
   fn make_move(&mut self, game: &Self::Game) -> GameInterfaceResult<<P::Game as Game>::Move> {
-    let mut buffer = String::new();
-    stdin()
-      .read_line(&mut buffer)
-      .map_err(|err| GameInterfaceError::IoError(err.to_string()))?;
-    let move_text = buffer.trim();
-    if move_text == "q" {
-      return Err(GameInterfaceError::Quit);
-    }
-
-    let m = self.player.parse_move(move_text, game)?;
+    let m = self
+      .player
+      .parse_move(GameMoveLineReader { input: BufReader::new(stdin()) }, game)?;
 
     if !game.each_move().contains(&m) {
       return Err(GameInterfaceError::MalformedMove(format!(
