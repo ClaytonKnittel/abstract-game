@@ -10,7 +10,7 @@ use termion::{
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::player::Player,
+  interactive::player::{MakeMoveControl, Player},
   Game, GamePlayer, GameResult,
 };
 
@@ -53,8 +53,9 @@ where
       };
 
       match move_result {
-        Ok(m) => break Ok(m),
-        Err(GameInterfaceError::Quit | GameInterfaceError::IoError(_)) => break move_result,
+        Ok(MakeMoveControl::Done(m)) => break Ok(m),
+        Ok(MakeMoveControl::Continue) => {}
+        Err(err @ (GameInterfaceError::Quit | GameInterfaceError::IoError(_))) => break Err(err),
         Err(err) => {
           self.println(&format!("{err}"))?;
         }

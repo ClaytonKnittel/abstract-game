@@ -2,7 +2,9 @@ use std::io::BufRead;
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::{human_player::HumanPlayer, line_reader::GameMoveLineReader},
+  interactive::{
+    human_player::HumanPlayer, line_reader::GameMoveLineReader, player::MakeMoveControl,
+  },
   test_games::{TTTMove, TicTacToe},
   Game, GamePlayer,
 };
@@ -26,7 +28,7 @@ impl HumanPlayer for TicTacToePlayer {
     &self,
     mut move_reader: GameMoveLineReader<I>,
     game: &TicTacToe,
-  ) -> GameInterfaceResult<TTTMove> {
+  ) -> GameInterfaceResult<MakeMoveControl<TTTMove>> {
     let move_text = move_reader.next_line()?;
     let make_malformed_move_err = || {
       GameInterfaceError::MalformedMove(format!(
@@ -69,6 +71,6 @@ impl HumanPlayer for TicTacToePlayer {
       )));
     }
 
-    Ok(TTTMove::new((x, y)))
+    Ok(MakeMoveControl::Done(TTTMove::new((x, y))))
   }
 }

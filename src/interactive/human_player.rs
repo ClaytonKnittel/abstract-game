@@ -1,6 +1,10 @@
 use std::io::BufRead;
 
-use crate::{error::GameInterfaceResult, interactive::line_reader::GameMoveLineReader, Game};
+use crate::{
+  error::GameInterfaceResult,
+  interactive::{line_reader::GameMoveLineReader, player::MakeMoveControl},
+  Game,
+};
 
 pub trait HumanPlayer {
   type Game: Game;
@@ -15,5 +19,5 @@ pub trait HumanPlayer {
     &self,
     move_reader: GameMoveLineReader<I>,
     game: &Self::Game,
-  ) -> GameInterfaceResult<<Self::Game as Game>::Move>;
+  ) -> GameInterfaceResult<MakeMoveControl<<Self::Game as Game>::Move>>;
 }
