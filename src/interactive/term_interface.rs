@@ -45,7 +45,7 @@ where
     self.player_name(self.game.current_player())
   }
 
-  fn next_move(&mut self) -> GameInterfaceResult<G::Move> {
+  fn next_move(&mut self) -> GameInterfaceResult<MakeMoveControl<G::Move>> {
     loop {
       let move_result = match self.game.current_player() {
         GamePlayer::Player1 => self.player1.make_move(&self.game),
@@ -53,8 +53,7 @@ where
       };
 
       match move_result {
-        Ok(MakeMoveControl::Done(m)) => break Ok(m),
-        Ok(MakeMoveControl::Continue) => {}
+        Ok(m) => break Ok(m),
         Err(err @ (GameInterfaceError::Quit | GameInterfaceError::IoError(_))) => break Err(err),
         Err(err) => {
           self.println(&format!("{err}"))?;
@@ -93,10 +92,18 @@ where
         self.println(&format!("{} to move:", self.current_player_name()))?;
       }
 
-      let m = self.next_move()?;
-      self.game.make_move(m);
+      // Prompt the player for their next move.
+      let next_move = self.next_move()?;
 
+      // Clear the screen before interpreting their move.
       self.clear()?;
+
+      // If the player requested to continue, loop back and redraw the screen.
+      // Otherwise, make the move and loop back.
+      match next_move {
+        MakeMoveControl::Done(m) => self.game.make_move(m),
+        MakeMoveControl::Continue => continue,
+      };
     }
 
     self.println(&format!("{}", self.game))?;
