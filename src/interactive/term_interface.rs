@@ -5,6 +5,7 @@ use std::{
 
 use termion::{
   clear, cursor,
+  input::MouseTerminal,
   screen::{AlternateScreen, IntoAlternateScreen},
 };
 
@@ -18,7 +19,7 @@ pub struct TermInterface<G, P1, P2> {
   game: G,
   player1: P1,
   player2: P2,
-  stdout: AlternateScreen<Stdout>,
+  stdout: MouseTerminal<AlternateScreen<Stdout>>,
 }
 
 impl<G, P1, P2> TermInterface<G, P1, P2>
@@ -28,9 +29,15 @@ where
   P2: Player<Game = G>,
 {
   pub fn new(game: G, player1: P1, player2: P2) -> GameInterfaceResult<Self> {
-    let stdout = std::io::stdout().into_alternate_screen().map_err(|err| {
-      GameInterfaceError::IoError(format!("Failed to enter alternate screen: {err}"))
-    })?;
+    let stdout = MouseTerminal::from(
+      std::io::stdout()
+        // .into_raw_mode()
+        // .map_err(|err| GameInterfaceError::IoError(format!("Failed to enter raw mode: {err}")))?
+        .into_alternate_screen()
+        .map_err(|err| {
+          GameInterfaceError::IoError(format!("Failed to enter alternate screen: {err}"))
+        })?,
+    );
     Ok(Self { game, player1, player2, stdout })
   }
 
