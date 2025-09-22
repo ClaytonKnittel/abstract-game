@@ -3,7 +3,8 @@ use std::io::BufRead;
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
   interactive::{
-    human_player::HumanPlayer, line_reader::GameMoveLineReader, player::MakeMoveControl,
+    human_player::HumanPlayer, input_reader::InputReader, line_reader::GameMoveLineReader,
+    player::MakeMoveControl,
   },
   test_games::Nim,
 };
@@ -29,7 +30,7 @@ impl HumanPlayer for NimPlayer {
     mut move_reader: GameMoveLineReader<I>,
     game: &Nim,
   ) -> GameInterfaceResult<MakeMoveControl<u32>> {
-    let move_text = move_reader.next_line()?;
+    let move_text = move_reader.next_input()?;
     let sticks = move_text
       .parse()
       .map_err(|_| GameInterfaceError::MalformedMove(format!("{move_text} is not a number")))?;

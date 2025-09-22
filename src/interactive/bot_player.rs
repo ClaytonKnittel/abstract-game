@@ -1,6 +1,9 @@
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::player::{MakeMoveControl, Player},
+  interactive::{
+    input_reader::InputReader,
+    player::{MakeMoveControl, Player},
+  },
   Game, Solver,
 };
 
@@ -23,9 +26,10 @@ impl<S: Solver> Player for BotPlayer<S> {
     self.name.clone()
   }
 
-  fn make_move(
+  fn make_move<I: InputReader>(
     &mut self,
     game: &S::Game,
+    _input: &mut I,
   ) -> GameInterfaceResult<MakeMoveControl<<S::Game as Game>::Move>> {
     let (score, m) = self.solver.best_move(game, self.depth);
     let m = m.ok_or_else(|| {

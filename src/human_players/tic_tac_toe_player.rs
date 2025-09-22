@@ -3,7 +3,8 @@ use std::io::BufRead;
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
   interactive::{
-    human_player::HumanPlayer, line_reader::GameMoveLineReader, player::MakeMoveControl,
+    human_player::HumanPlayer, input_reader::InputReader, line_reader::GameMoveLineReader,
+    player::MakeMoveControl,
   },
   test_games::{TTTMove, TicTacToe},
   Game, GamePlayer,
@@ -29,7 +30,7 @@ impl HumanPlayer for TicTacToePlayer {
     mut move_reader: GameMoveLineReader<I>,
     game: &TicTacToe,
   ) -> GameInterfaceResult<MakeMoveControl<TTTMove>> {
-    let move_text = move_reader.next_line()?;
+    let move_text = move_reader.next_input()?;
     let make_malformed_move_err = || {
       GameInterfaceError::MalformedMove(format!(
         "\"{move_text}\" is not a valid coordinate pair \"X,Y\""

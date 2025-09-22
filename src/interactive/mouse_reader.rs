@@ -5,7 +5,10 @@ use termion::{
   input::{Events, TermRead},
 };
 
-use crate::error::{GameInterfaceError, GameInterfaceResult};
+use crate::{
+  error::{GameInterfaceError, GameInterfaceResult},
+  interactive::input_reader::InputReader,
+};
 
 pub struct MouseButtonPress {
   pub button: MouseButton,
@@ -37,11 +40,13 @@ impl<I: Read + TermRead + 'static> MouseReader<I> {
   }
 }
 
-impl<I: Read + TermRead> MouseReader<I> {
+impl<I: Read + TermRead> InputReader for MouseReader<I> {
+  type Output = MouseButtonPress;
+
   /// Reads the next input from the input source, returning an error if the
   /// user quit or the underlying reader returned an error when trying to read
   /// the next line.
-  pub fn next_mouse_input(&mut self) -> GameInterfaceResult<MouseButtonPress> {
+  fn next_input(&mut self) -> GameInterfaceResult<Self::Output> {
     self.input_stream.next().unwrap()
   }
 }

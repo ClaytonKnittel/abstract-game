@@ -1,6 +1,6 @@
 use std::{
   fmt::Display,
-  io::{stdin, Stdout, Write},
+  io::{stdin, Stdin, Stdout, Write},
 };
 
 use termion::{
@@ -11,36 +11,28 @@ use termion::{
 
 use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
-  interactive::player::{MakeMoveControl, Player},
+  interactive::{
+    line_reader::GameMoveLineReader,
+    player::{MakeMoveControl, Player},
+  },
   Game, GamePlayer, GameResult,
 };
 
-pub struct TermInterface<G, P1, P2> {
+pub struct TermInterface<G, P1, P2, O, I> {
   game: G,
   player1: P1,
   player2: P2,
-  stdout: MouseTerminal<AlternateScreen<Stdout>>,
+  stdout: O,
+  stdin: I,
 }
 
-impl<G, P1, P2> TermInterface<G, P1, P2>
+impl<G, P1, P2, O, I> TermInterface<G, P1, P2, O, I>
 where
   G: Game + Display,
   P1: Player<Game = G>,
   P2: Player<Game = G>,
+  O: Write,
 {
-  pub fn new(game: G, player1: P1, player2: P2) -> GameInterfaceResult<Self> {
-    let stdout = MouseTerminal::from(
-      std::io::stdout()
-        // .into_raw_mode()
-        // .map_err(|err| GameInterfaceError::IoError(format!("Failed to enter raw mode: {err}")))?
-        .into_alternate_screen()
-        .map_err(|err| {
-          GameInterfaceError::IoError(format!("Failed to enter alternate screen: {err}"))
-        })?,
-    );
-    Ok(Self { game, player1, player2, stdout })
-  }
-
   fn player_name(&self, player: GamePlayer) -> String {
     match player {
       GamePlayer::Player1 => self.player1.display_name(),
@@ -132,5 +124,27 @@ where
       .map_err(|err| GameInterfaceError::IoError(err.to_string()))?;
 
     Ok(())
+  }
+}
+
+impl<G, P1, P2>
+  TermInterface<G, P1, P2, MouseTerminal<AlternateScreen<Stdout>>, GameMoveLineReader<Stdin>>
+where
+  G: Game + Display,
+  P1: Player<Game = G>,
+  P2: Player<Game = G>,
+{
+  pub fn new(game: G, player1: P1, player2: P2) -> GameInterfaceResult<Self> {
+    let stdout = MouseTerminal::from(
+      std::io::stdout()
+        // .into_raw_mode()
+        // .map_err(|err| GameInterfaceError::IoError(format!("Failed to enter raw mode: {err}")))?
+        .into_alternate_screen()
+        .map_err(|err| {
+          GameInterfaceError::IoError(format!("Failed to enter alternate screen: {err}"))
+        })?,
+    );
+    let stdin = GameMoveLineReader { input: stdin() };
+    Ok(Self { game, player1, player2, stdout, stdin })
   }
 }

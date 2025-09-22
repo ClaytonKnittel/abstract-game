@@ -1,4 +1,4 @@
-use crate::{error::GameInterfaceResult, Game};
+use crate::{error::GameInterfaceResult, interactive::input_reader::InputReader, Game};
 
 /// Value returned from `make_move` to tell the game engine whether to accept a
 /// move from a player, or to keep prompting the player. `Continue` may be used
@@ -22,8 +22,9 @@ pub trait Player {
     None
   }
 
-  fn make_move(
+  fn make_move<I: InputReader>(
     &mut self,
     game: &Self::Game,
+    input: &mut I,
   ) -> GameInterfaceResult<MakeMoveControl<<Self::Game as Game>::Move>>;
 }

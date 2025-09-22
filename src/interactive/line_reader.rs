@@ -1,16 +1,21 @@
 use std::io::BufRead;
 
-use crate::error::{GameInterfaceError, GameInterfaceResult};
+use crate::{
+  error::{GameInterfaceError, GameInterfaceResult},
+  interactive::input_reader::InputReader,
+};
 
 pub struct GameMoveLineReader<I> {
   pub(crate) input: I,
 }
 
-impl<I: BufRead> GameMoveLineReader<I> {
+impl<I: BufRead> InputReader for GameMoveLineReader<I> {
+  type Output = String;
+
   /// Reads the next line from the input source, returning an error if the user
   /// quit or the underlying `BufReader` returned an error when trying to read
   /// the next line.
-  pub fn next_line(&mut self) -> GameInterfaceResult<String> {
+  fn next_input(&mut self) -> GameInterfaceResult<String> {
     let mut buffer = String::new();
     self
       .input

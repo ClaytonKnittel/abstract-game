@@ -1,6 +1,7 @@
 pub mod bot_player;
 pub mod human_player;
 pub mod human_term_player;
+pub mod input_reader;
 pub mod line_reader;
 pub mod mouse_reader;
 pub mod player;

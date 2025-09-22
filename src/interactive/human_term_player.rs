@@ -6,6 +6,7 @@ use crate::{
   error::{GameInterfaceError, GameInterfaceResult},
   interactive::{
     human_player::HumanPlayer,
+    input_reader::InputReader,
     line_reader::GameMoveLineReader,
     player::{MakeMoveControl, Player},
   },
@@ -34,13 +35,12 @@ impl<P: HumanPlayer> Player for HumanTermPlayer<P> {
     Some(self.player.prompt_move_text(game))
   }
 
-  fn make_move(
+  fn make_move<I: InputReader>(
     &mut self,
     game: &Self::Game,
+    input: &mut I,
   ) -> GameInterfaceResult<MakeMoveControl<<P::Game as Game>::Move>> {
-    let m = self
-      .player
-      .parse_move(GameMoveLineReader { input: BufReader::new(stdin()) }, game)?;
+    let m = self.player.parse_move(input, game)?;
 
     if let MakeMoveControl::Done(m) = &m {
       if !game.each_move().contains(m) {
